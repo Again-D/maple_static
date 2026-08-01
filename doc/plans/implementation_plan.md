@@ -49,13 +49,14 @@ Maple/
 - [NEW] Supabase PostgreSQL 연동을 위한 DDL 스크립트 (`database/schema.sql`) 정의
 - [NEW] Spring Boot 3.x 백엔드 프로젝트 초기화 (`backend/`)
 - [NEW] Next.js 14 프론트엔드 프로젝트 초기화 (`frontend/`)
+- [NEW] 로컬/운영 환경 변수와 배포 기준은 `doc/ops/env_and_deployment.md`를 따른다.
 
 ### Phase 2: Spring Boot 백엔드 개발
 - 넥슨 OpenAPI 통합 호출 모듈 (`NexonApiClient` via `WebClient`)
 - JPA 엔티티 (`CharacterEntity`, `DailySnapshotEntity`, `GrowthEventLogEntity`) 및 Repository 작성
 - 스펙 비교(Diff) 알고리즘 서비스 구현 (이전 스냅샷 vs 오늘 스냅샷 비교하여 레벨, 전투력, 교체된 장비 감지)
-- REST API 컨트롤러 구현 (`GET /api/v1/characters/{name}`, `GET /api/v1/characters/{name}/growth-history`)
-- `@Scheduled` 스케줄러 작성 (등록된 캐릭터 매일 새벽 0시 스냅샷 자동 저장)
+- REST API 컨트롤러 구현 (`GET /api/v1/characters/{name}`, dashboard/history/events/refresh 계약은 `doc/api/api_contract.md` 참조)
+- `@Scheduled` 스케줄러 작성 (등록된 캐릭터 매일 새벽 04:00 KST 스냅샷 자동 저장, 세부 기준은 `doc/domain/snapshot_policy.md` 참조)
 
 ### Phase 3: Next.js 프론트엔드 개발
 - 디자인 시스템 (Dark glassmorphism theme, Maple gold/cyan accent colors, CSS Variables) 설정
@@ -73,6 +74,7 @@ Maple/
 ### 1. 백엔드 검증 (Spring Boot)
 - Spring Boot 애플리케이션 빌드 (`./gradlew build` 또는 `./mvnw package`)
 - 넥슨 OpenAPI 호출 테스트 및 DB 스냅샷 정상 누적 확인.
+- 백엔드 비밀값과 스케줄러 설정은 `doc/ops/env_and_deployment.md`의 배포 전 체크리스트로 확인.
 
 ### 2. 프론트엔드 검증 (Next.js)
 - `npm run build`를 통한 TypeScript 및 JSX 문법 오류 검증.
