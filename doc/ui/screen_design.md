@@ -6,7 +6,7 @@
 
 ## 🖼️ 1. 대시보드 비주얼 목업 (Visual UI Mockup)
 
-![Dashboard Preview](file:///C:/Users/woner/.gemini/antigravity/brain/c66790ed-0e9c-48f6-bd22-49c974fe3856/maple_growth_dashboard_mockup_1785606102282.jpg)
+![Dashboard Preview](file:///e:/projects/Maple/doc/ui/maple_growth_dashboard_mockup.jpg)
 
 ---
 
