@@ -3,6 +3,8 @@ package com.maple.growth.service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,6 +23,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class NexonApiClient {
 
     private static final Logger log = LoggerFactory.getLogger(NexonApiClient.class);
+    private static final Pattern OPEN_API_ERROR_NAME_PATTERN = Pattern.compile("\"name\"\\s*:\\s*\"(OPENAPI\\d{5})\"");
 
     private final WebClient nexonWebClient;
     private final Duration nexonTimeout;
@@ -110,6 +113,13 @@ public class NexonApiClient {
 
     private NexonApiException mapHttpException(WebClientResponseException exception) {
         HttpStatusCode status = exception.getStatusCode();
+        String openApiErrorName = extractOpenApiErrorName(exception.getResponseBodyAsString());
+        if ("OPENAPI00004".equals(openApiErrorName)) {
+            return new NexonApiException(ApiErrorCode.INVALID_CHARACTER_NAME, "캐릭터명을 다시 확인해 주세요.", false);
+        }
+        if ("OPENAPI00005".equals(openApiErrorName)) {
+            return new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 키가 유효하지 않습니다.", false);
+        }
         if (status.value() == 404) {
             return new NexonApiException(ApiErrorCode.CHARACTER_NOT_FOUND, "캐릭터를 찾을 수 없습니다.", false);
         }
@@ -123,6 +133,14 @@ public class NexonApiClient {
             return new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 호출이 실패했습니다.", true);
         }
         return new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 호출이 실패했습니다.", true);
+    }
+
+    private static String extractOpenApiErrorName(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return null;
+        }
+        Matcher matcher = OPEN_API_ERROR_NAME_PATTERN.matcher(responseBody);
+        return matcher.find() ? matcher.group(1) : null;
     }
 
     private static String requiredText(JsonNode node, String field) {
