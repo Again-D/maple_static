@@ -69,6 +69,18 @@ Backend configuration is loaded from environment variables. The important values
 For local development against PostgreSQL, the example file includes `SPRING_DATASOURCE_DRIVER=org.postgresql.Driver`.
 The backend test profile can still start with the H2 defaults in `backend/src/main/resources/application.yml`.
 
+To confirm that your local Nexon key is real:
+
+1. Open `.env.local` or the file you pass to `--env-file`.
+2. Make sure `NEXON_API_KEY` is not the example placeholder value.
+3. After the stack starts, check the injected value inside the backend container:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.local.yml exec backend printenv NEXON_API_KEY
+```
+
+If that command prints a placeholder like `replace-with-your-nexon-api-key` or a `test_...` value, update the env file and restart the stack.
+
 Common local commands:
 
 ```bash
