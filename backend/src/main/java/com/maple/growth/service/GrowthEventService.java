@@ -50,8 +50,8 @@ public class GrowthEventService {
                             : "Lv.%d -> Lv.%d 레벨 상승".formatted(previous.getLevel(), current.getLevel()),
                     "level_up:%d->%d".formatted(previous.getLevel(), current.getLevel()),
                     3,
-                    detailNode(values("from", previous.getLevel(), "to", current.getLevel(), "delta", delta)),
-                    "%d -> %d".formatted(previous.getLevel(), current.getLevel())));
+                    detailNode(values("fromLevel", previous.getLevel(), "toLevel", current.getLevel(), "delta", delta)),
+                    "이전 대표 스냅샷 대비 레벨이 상승했습니다."));
         }
 
         addCombatPowerEvent(result, current, previous);

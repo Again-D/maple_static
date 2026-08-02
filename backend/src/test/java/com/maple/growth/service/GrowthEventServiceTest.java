@@ -55,6 +55,27 @@ class GrowthEventServiceTest {
     }
 
     @Test
+    void levelUpUsesDocumentedDetailKeysAndDescription() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-5", "Aries96", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 101, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        GrowthEventLogEntity levelUp = service.buildEvents(current, previous).stream()
+                .filter(event -> "LEVEL_UP".equals(event.getEventType()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(levelUp.getDescription()).isEqualTo("이전 대표 스냅샷 대비 레벨이 상승했습니다.");
+        assertThat(levelUp.getDetailJson().get("fromLevel").asInt()).isEqualTo(100);
+        assertThat(levelUp.getDetailJson().get("toLevel").asInt()).isEqualTo(101);
+        assertThat(levelUp.getDetailJson().get("delta").asInt()).isEqualTo(1);
+    }
+
+    @Test
     void combatPowerBelowAbsoluteThresholdAndBelowRatioThresholdDoesNotEmitEvent() {
         GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -80,7 +101,8 @@ class GrowthEventServiceTest {
 
         List<GrowthEventLogEntity> events = service.buildEvents(current, previous);
 
-        assertThat(events).allSatisfy(event -> assertThat(event.getDescription()).isNotEqualTo(event.getTitle()));
+        assertThat(events.stream().filter(event -> !"LEVEL_UP".equals(event.getEventType())).toList())
+                .allSatisfy(event -> assertThat(event.getDescription()).isNotEqualTo(event.getTitle()));
         assertThat(events).anySatisfy(event -> {
             if ("COMBAT_POWER_CHANGE".equals(event.getEventType())) {
                 assertThat(event.getDescription()).isEqualTo("1,000,000 -> 1,120,000");
