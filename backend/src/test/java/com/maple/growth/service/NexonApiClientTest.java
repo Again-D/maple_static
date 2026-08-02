@@ -140,6 +140,22 @@ class NexonApiClientTest {
     }
 
     @Test
+    void openApiInvalidParameterMapsToInvalidCharacterName() {
+        server.enqueue(new MockResponse()
+                .setResponseCode(400)
+                .setBody("{\"error\":{\"name\":\"OPENAPI00004\",\"message\":\"Please input valid parameter\"}}")
+                .addHeader("Content-Type", "application/json"));
+        WebClient webClient = WebClient.builder().baseUrl(server.url("/").toString()).build();
+        NexonApiClient client = new NexonApiClient(webClient, Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> client.fetchCharacterSnapshot("invalid", LocalDate.of(2026, 8, 2)))
+                .isInstanceOfSatisfying(NexonApiException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.INVALID_CHARACTER_NAME);
+                    assertThat(exception.isRetryable()).isFalse();
+                });
+    }
+
+    @Test
     void rateLimitMapsToRetryable() {
         server.enqueue(new MockResponse().setResponseCode(429));
         WebClient webClient = WebClient.builder().baseUrl(server.url("/").toString()).build();
