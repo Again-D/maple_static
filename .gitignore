@@ -15,6 +15,7 @@ node_modules/
 out/
 build/
 *.log
+*.tsbuildinfo
 
 # Java / Spring Boot
 target/
