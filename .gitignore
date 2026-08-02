@@ -23,6 +23,7 @@ build/
 out/
 *.class
 *.jar
+!backend/gradle/wrapper/gradle-wrapper.jar
 
 # Environment variables
 .env

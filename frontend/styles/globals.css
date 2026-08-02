@@ -1,0 +1,175 @@
+:root {
+  color-scheme: dark;
+  --bg: #06111a;
+  --bg-elevated: rgba(12, 27, 39, 0.82);
+  --bg-accent: rgba(16, 52, 74, 0.72);
+  --border: rgba(174, 214, 255, 0.18);
+  --text: #eef6ff;
+  --muted: #9db5ca;
+  --accent: #8be1ff;
+  --accent-strong: #53c5ff;
+  --warning: #ffd166;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  --radius: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(83, 197, 255, 0.22), transparent 34%),
+    radial-gradient(circle at 80% 12%, rgba(139, 225, 255, 0.16), transparent 30%),
+    linear-gradient(180deg, #07131d 0%, #050b12 100%);
+  color: var(--text);
+}
+
+a {
+  color: inherit;
+}
+
+.shell {
+  min-height: 100vh;
+  padding: 48px 20px 64px;
+  display: grid;
+  gap: 24px;
+  place-items: center;
+}
+
+.hero-card,
+.feature-grid article {
+  width: min(100%, 960px);
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--bg-elevated), rgba(6, 15, 23, 0.78));
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.hero-card {
+  padding: clamp(24px, 4vw, 44px);
+  border-radius: var(--radius);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  line-height: 0.98;
+  max-width: 12ch;
+}
+
+.lede {
+  max-width: 62ch;
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.search-form {
+  margin-top: 28px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-form input {
+  flex: 1 1 280px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 16px 18px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.search-form input:focus {
+  border-color: rgba(139, 225, 255, 0.55);
+  box-shadow: 0 0 0 4px rgba(83, 197, 255, 0.12);
+}
+
+.search-form button {
+  border: 0;
+  border-radius: 16px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #03121c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feedback {
+  margin: 14px 0 0;
+  color: #ffdd8a;
+}
+
+.hint {
+  margin: 14px 0 0;
+  color: var(--muted);
+}
+
+.feature-grid {
+  width: min(100%, 960px);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.feature-grid article {
+  padding: 22px;
+  border-radius: 20px;
+}
+
+.feature-grid h2 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.feature-grid p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .shell {
+    padding: 20px 14px 40px;
+  }
+
+  .hero-card {
+    padding: 20px;
+  }
+
+  .search-form button {
+    width: 100%;
+  }
+}
