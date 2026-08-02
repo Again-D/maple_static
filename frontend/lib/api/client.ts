@@ -30,14 +30,36 @@ export function getAppTimezone() {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      Accept: "application/json",
-      ...(init?.headers ?? {})
+  const fallback = {
+    success: false,
+    error: {
+      code: "INTERNAL_ERROR",
+      message: "잠시 후 다시 시도해 주세요.",
+      retryable: true
+    },
+    meta: {
+      serverTime: new Date().toISOString(),
+      timezone: getAppTimezone()
     }
-  });
-  return (await response.json()) as ApiResponse<T>;
+  } as const satisfies ApiResponse<T>;
+
+  try {
+    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      headers: {
+        Accept: "application/json",
+        ...(init?.headers ?? {})
+      }
+    });
+
+    try {
+      return (await response.json()) as ApiResponse<T>;
+    } catch {
+      return fallback;
+    }
+  } catch {
+    return fallback;
+  }
 }
 
 export function fetchCharacterLookup(name: string) {

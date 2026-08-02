@@ -5,6 +5,7 @@ import { StateMessage } from "./StateMessage";
 import { SummaryCards } from "./SummaryCards";
 import { SyncStatus } from "./SyncStatus";
 import type { DashboardData } from "../lib/api/types";
+import Link from "next/link";
 
 type CharacterDashboardViewProps = {
   name: string;
@@ -50,6 +51,9 @@ export function CharacterDashboardView({ name, status, data, errorMessage, banne
           <p className="eyebrow">Character Dashboard</p>
           <h1>{name}</h1>
           <StateMessage tone="warning" title="캐릭터를 찾을 수 없습니다." message={errorMessage ?? "닉네임을 다시 확인한 뒤 검색해 보세요."} actionLabel="다시 검색" />
+          <Link className="refresh-button refresh-button--inline" href="/">
+            다시 검색
+          </Link>
         </section>
       </main>
     );

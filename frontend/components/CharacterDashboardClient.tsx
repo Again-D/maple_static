@@ -23,22 +23,31 @@ export function CharacterDashboardClient({ name }: CharacterDashboardClientProps
   const [state, setState] = useState<DashboardState>({ status: "loading" });
   const [refreshing, setRefreshing] = useState(false);
 
-  async function loadDashboard(banner: { title: string; message: string } | null = null) {
-    setState((current) => (current.status === "ready" ? { ...current, banner } : { status: "loading" }));
+  async function loadDashboard(options?: { banner?: { title: string; message: string } | null; preserveCurrentContent?: boolean }) {
+    const banner = options?.banner ?? null;
+    const preserveCurrentContent = options?.preserveCurrentContent ?? false;
+
+    if (!preserveCurrentContent) {
+      setState({ status: "loading" });
+    }
+
     const response = await fetchDashboard(name);
     if (response.success) {
       setState({ status: "ready", data: response.data, banner });
       return response.data;
     }
+
     if (response.error.code === "CHARACTER_NOT_FOUND") {
       setState({ status: "not_found", message: response.error.message });
       return null;
     }
+
     setState({ status: "error", message: response.error.message });
     return null;
   }
 
   useEffect(() => {
+    setState({ status: "loading" });
     void loadDashboard();
   }, [name]);
 
@@ -47,24 +56,29 @@ export function CharacterDashboardClient({ name }: CharacterDashboardClientProps
       return;
     }
     setRefreshing(true);
-    const refreshResponse = await refreshCharacter(name);
-    if (!refreshResponse.success) {
-      setState({
-        status: "ready",
-        data: state.data,
+    try {
+      const refreshResponse = await refreshCharacter(name);
+      if (!refreshResponse.success) {
+        setState({
+          status: "ready",
+          data: state.data,
+          banner: {
+            title: refreshResponse.error.code === "RATE_LIMITED" ? "새로고침이 제한되었습니다." : "새로고침에 실패했습니다.",
+            message: refreshResponse.error.message
+          }
+        });
+        return;
+      }
+      await loadDashboard({
         banner: {
-          title: refreshResponse.error.code === "RATE_LIMITED" ? "새로고침이 제한되었습니다." : "새로고침에 실패했습니다.",
-          message: refreshResponse.error.message
-        }
+          title: refreshResponse.data.snapshotUpdated ? "새로고침이 완료되었습니다." : "새로운 스냅샷을 저장했습니다.",
+          message: `성장 이벤트 ${refreshResponse.data.createdEventCount}개가 반영되었습니다.`
+        },
+        preserveCurrentContent: true
       });
+    } finally {
       setRefreshing(false);
-      return;
     }
-    await loadDashboard({
-      title: refreshResponse.data.snapshotUpdated ? "새로고침이 완료되었습니다." : "새로운 스냅샷을 저장했습니다.",
-      message: `성장 이벤트 ${refreshResponse.data.createdEventCount}개가 반영되었습니다.`
-    });
-    setRefreshing(false);
   }
 
   if (state.status === "loading") {

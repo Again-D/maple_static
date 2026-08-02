@@ -167,6 +167,7 @@ describe("dashboard page", () => {
     );
 
     assert.match(notFound, /캐릭터를 찾을 수 없습니다/);
+    assert.match(notFound, /href="\/"/);
     assert.match(error, /대시보드를 불러오지 못했습니다/);
   });
 });
