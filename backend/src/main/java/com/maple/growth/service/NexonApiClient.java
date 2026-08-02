@@ -27,10 +27,10 @@ public class NexonApiClient {
             String ocid = requiredText(ocidPayload, "ocid");
             JsonNode basicPayload = getJson("/maplestory/v1/character/basic", "ocid", ocid);
             JsonNode statPayload = getJson("/maplestory/v1/character/stat", "ocid", ocid);
-            JsonNode equipmentPayload = getJson("/maplestory/v1/character/item-equipment", "ocid", ocid);
-            JsonNode hexaPayload = getJson("/maplestory/v1/character/hexa-core-equipment", "ocid", ocid);
-            JsonNode unionPayload = getJson("/maplestory/v1/user/union", "ocid", ocid);
-            JsonNode unionArtifactPayload = getJson("/maplestory/v1/user/union-artifact", "ocid", ocid);
+            JsonNode equipmentPayload = getOptionalJson("/maplestory/v1/character/item-equipment", "ocid", ocid);
+            JsonNode hexaPayload = getOptionalJson("/maplestory/v1/character/hexa-core-equipment", "ocid", ocid);
+            JsonNode unionPayload = getOptionalJson("/maplestory/v1/user/union", "ocid", ocid);
+            JsonNode unionArtifactPayload = getOptionalJson("/maplestory/v1/user/union-artifact", "ocid", ocid);
 
             return new NexonCharacterSnapshot(
                     ocid,
@@ -71,6 +71,14 @@ public class NexonApiClient {
             throw e;
         } catch (Exception e) {
             throw new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 호출이 시간 초과되었습니다.", true);
+        }
+    }
+
+    private JsonNode getOptionalJson(String path, String paramName, String paramValue) {
+        try {
+            return getJson(path, paramName, paramValue);
+        } catch (WebClientResponseException | NexonApiException exception) {
+            return null;
         }
     }
 

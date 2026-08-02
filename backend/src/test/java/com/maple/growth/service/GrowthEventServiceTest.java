@@ -54,6 +54,40 @@ class GrowthEventServiceTest {
         verify(repository).deleteBySnapshot(current);
     }
 
+    @Test
+    void combatPowerBelowAbsoluteThresholdAndBelowRatioThresholdDoesNotEmitEvent() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-3", "Aries94", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 9_999_999L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 10_099_998L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        assertThat(service.buildEvents(current, previous)).extracting(GrowthEventLogEntity::getEventType)
+                .doesNotContain("COMBAT_POWER_CHANGE");
+    }
+
+    @Test
+    void eventDescriptionsCarryBeforeAndAfterValues() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-4", "Aries95", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 101, 1_120_000L, new BigDecimal("11.0000"), 1_100L, 820, 6, 2, LocalDate.of(2026, 8, 2));
+
+        List<GrowthEventLogEntity> events = service.buildEvents(current, previous);
+
+        assertThat(events).allSatisfy(event -> assertThat(event.getDescription()).isNotEqualTo(event.getTitle()));
+        assertThat(events).anySatisfy(event -> {
+            if ("COMBAT_POWER_CHANGE".equals(event.getEventType())) {
+                assertThat(event.getDescription()).isEqualTo("1,000,000 -> 1,120,000");
+            }
+        });
+    }
+
     private DailySnapshotEntity snapshot(CharacterEntity character, int level, long combatPower, BigDecimal expRate, Long exp, Integer unionLevel, Integer artifactLevel, Integer hexa, LocalDate date) {
         DailySnapshotEntity snapshot = new DailySnapshotEntity(character, date);
         snapshot.setLevel(level);

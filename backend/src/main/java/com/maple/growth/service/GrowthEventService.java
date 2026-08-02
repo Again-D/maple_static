@@ -50,7 +50,8 @@ public class GrowthEventService {
                             : "Lv.%d -> Lv.%d 레벨 상승".formatted(previous.getLevel(), current.getLevel()),
                     "level_up:%d->%d".formatted(previous.getLevel(), current.getLevel()),
                     3,
-                    detailNode(values("from", previous.getLevel(), "to", current.getLevel(), "delta", delta))));
+                    detailNode(values("from", previous.getLevel(), "to", current.getLevel(), "delta", delta)),
+                    "%d -> %d".formatted(previous.getLevel(), current.getLevel())));
         }
 
         addCombatPowerEvent(result, current, previous);
@@ -68,21 +69,18 @@ public class GrowthEventService {
         long to = current.getCombatPower();
         long delta = to - from;
         long absDelta = Math.abs(delta);
-        boolean ratioThreshold = from > 0 && BigDecimal.valueOf(absDelta)
-                .divide(BigDecimal.valueOf(from), 4, RoundingMode.HALF_UP)
-                .compareTo(new BigDecimal("0.0100")) >= 0;
+        boolean ratioThreshold = from > 0 && meetsRatioThreshold(from, absDelta, new BigDecimal("0.0100"));
         if (absDelta < 100_000 && !ratioThreshold) {
             return;
         }
-        int importance = absDelta >= 1_000_000 || (from > 0 && BigDecimal.valueOf(absDelta)
-                .divide(BigDecimal.valueOf(from), 4, RoundingMode.HALF_UP)
-                .compareTo(new BigDecimal("0.0500")) >= 0) ? 2 : 1;
+        int importance = absDelta >= 1_000_000 || (from > 0 && meetsRatioThreshold(from, absDelta, new BigDecimal("0.0500"))) ? 2 : 1;
         String direction = delta >= 0 ? "상승" : "하락";
         result.add(buildEvent(current, previous, GrowthEventType.COMBAT_POWER_CHANGE,
                 "전투력 %s %s".formatted(formatNumber(absDelta), direction),
                 "combat_power:%d->%d".formatted(from, to),
                 importance,
-                detailNode(values("from", from, "to", to, "delta", delta, "deltaRate", ratio(from, absDelta), "direction", delta >= 0 ? "up" : "down"))));
+                detailNode(values("from", from, "to", to, "delta", delta, "deltaRate", ratio(from, absDelta), "direction", delta >= 0 ? "up" : "down")),
+                "%s -> %s".formatted(formatNumber(from), formatNumber(to))));
     }
 
     private void addHexaEvent(List<GrowthEventLogEntity> result, DailySnapshotEntity current, DailySnapshotEntity previous) {
@@ -99,7 +97,8 @@ public class GrowthEventService {
                 "헥사 매트릭스 +%d".formatted(delta),
                 "hexa_sum:%d->%d".formatted(from, to),
                 2,
-                detailNode(values("from", from, "to", to, "delta", delta))));
+                detailNode(values("from", from, "to", to, "delta", delta)),
+                "%d -> %d".formatted(from, to)));
     }
 
     private void addUnionEvent(List<GrowthEventLogEntity> result, DailySnapshotEntity current, DailySnapshotEntity previous) {
@@ -118,7 +117,12 @@ public class GrowthEventService {
                 levelUp && artifactUp ? "유니온 성장 감지" : levelUp ? "유니온 레벨 +%d".formatted(current.getUnionLevel() - previous.getUnionLevel()) : "유니온 아티팩트 +%d".formatted(current.getUnionArtifactLevel() - previous.getUnionArtifactLevel()),
                 key,
                 2,
-                detailNode(values("fromUnionLevel", previous.getUnionLevel(), "toUnionLevel", current.getUnionLevel(), "fromArtifactLevel", previous.getUnionArtifactLevel(), "toArtifactLevel", current.getUnionArtifactLevel()))));
+                detailNode(values("fromUnionLevel", previous.getUnionLevel(), "toUnionLevel", current.getUnionLevel(), "fromArtifactLevel", previous.getUnionArtifactLevel(), "toArtifactLevel", current.getUnionArtifactLevel())),
+                "%s/%s -> %s/%s".formatted(
+                        String.valueOf(previous.getUnionLevel()),
+                        String.valueOf(previous.getUnionArtifactLevel()),
+                        String.valueOf(current.getUnionLevel()),
+                        String.valueOf(current.getUnionArtifactLevel()))));
     }
 
     private GrowthEventLogEntity buildEvent(
@@ -128,12 +132,13 @@ public class GrowthEventService {
             String title,
             String key,
             int importance,
-            ObjectNode detailJson
+            ObjectNode detailJson,
+            String description
     ) {
         GrowthEventLogEntity event = new GrowthEventLogEntity(current.getCharacter(), current, current.getSnapshotDate(), type.name(), key);
         event.setTitle(title);
         event.setImportanceLevel(importance);
-        event.setDescription(title);
+        event.setDescription(description);
         event.setDetailJson(detailJson);
         return event;
     }
@@ -175,6 +180,11 @@ public class GrowthEventService {
         return BigDecimal.valueOf(delta)
                 .divide(BigDecimal.valueOf(from), 4, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
+    }
+
+    private boolean meetsRatioThreshold(long from, long absDelta, BigDecimal threshold) {
+        return BigDecimal.valueOf(absDelta)
+                .compareTo(BigDecimal.valueOf(from).multiply(threshold)) >= 0;
     }
 
     private String formatNumber(long value) {

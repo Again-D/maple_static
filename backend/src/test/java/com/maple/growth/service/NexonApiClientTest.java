@@ -86,6 +86,47 @@ class NexonApiClientTest {
     }
 
     @Test
+    void optionalEndpointFailuresReturnNullsInsteadOfFailingLookup() throws Exception {
+        server.enqueue(new MockResponse().setBody("{\"ocid\":\"ocid-123\"}").addHeader("Content-Type", "application/json"));
+        server.enqueue(new MockResponse().setBody("""
+                {
+                  "character_name": "Aries92",
+                  "world_name": "루나",
+                  "character_class": "나이트로드",
+                  "character_gender": "male",
+                  "character_image": "https://example.com/image.png"
+                }
+                """).addHeader("Content-Type", "application/json"));
+        server.enqueue(new MockResponse().setBody("""
+                {
+                  "character_level": "278",
+                  "character_exp": "123456789",
+                  "character_exp_rate": "42.1234",
+                  "final_stat": [
+                    {"stat_name": "전투력", "stat_value": "7420500"}
+                  ]
+                }
+                """).addHeader("Content-Type", "application/json"));
+        server.enqueue(new MockResponse().setBody("{}").addHeader("Content-Type", "application/json"));
+        server.enqueue(new MockResponse().setBody("{}").addHeader("Content-Type", "application/json"));
+        server.enqueue(new MockResponse().setResponseCode(503));
+        server.enqueue(new MockResponse().setResponseCode(404));
+
+        WebClient webClient = WebClient.builder()
+                .baseUrl(server.url("/").toString())
+                .defaultHeader("x-nxopen-api-key", "test-key")
+                .build();
+        NexonApiClient client = new NexonApiClient(webClient, Duration.ofSeconds(1));
+
+        NexonCharacterSnapshot snapshot = client.fetchCharacterSnapshot("아리엘", LocalDate.of(2026, 8, 2));
+
+        assertThat(snapshot.unionLevel()).isNull();
+        assertThat(snapshot.unionArtifactLevel()).isNull();
+        assertThat(snapshot.hexaMatrixLevelSum()).isNull();
+        assertThat(snapshot.combatPower()).isEqualTo(7420500L);
+    }
+
+    @Test
     void notFoundMapsToCharacterNotFound() {
         server.enqueue(new MockResponse().setResponseCode(404));
         WebClient webClient = WebClient.builder().baseUrl(server.url("/").toString()).build();

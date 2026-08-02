@@ -9,7 +9,7 @@ export default async function CharacterPage({ params }: CharacterPageProps) {
     <main className="shell">
       <section className="hero-card">
         <p className="eyebrow">Character Dashboard</p>
-        <h1>{decodeURIComponent(name)}</h1>
+        <h1>{name}</h1>
         <p className="lede">
           이 경로는 다음 단계에서 대시보드 상태, 차트, 이벤트 타임라인과 연결됩니다.
         </p>
