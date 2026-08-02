@@ -5,9 +5,9 @@ import { buildCharacterRoute, canSubmitSearch, getApiBaseUrl, normalizeCharacter
 import type { DashboardData } from "../lib/api/types";
 
 describe("api client helpers", () => {
-  it("trims and encodes names for routes", () => {
+  it("trims names for routes", () => {
     assert.equal(normalizeCharacterName("  아리엘  "), "아리엘");
-    assert.equal(buildCharacterRoute("  아리엘  "), "/character/%EC%95%84%EB%A6%AC%EC%97%98");
+    assert.equal(buildCharacterRoute("  아리엘  "), "/character/아리엘");
   });
 
   it("blocks blank or pending search submits", () => {
