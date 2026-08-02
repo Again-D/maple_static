@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS characters (
     character_image_url TEXT,
     is_auto_track BOOLEAN DEFAULT TRUE,
     last_fetched_at TIMESTAMP WITH TIME ZONE,
+    last_sync_attempted_at TIMESTAMP WITH TIME ZONE,
+    last_sync_error_code VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -32,18 +34,19 @@ CREATE TABLE IF NOT EXISTS daily_snapshots (
     level INT NOT NULL,
     exp BIGINT NOT NULL,
     exp_rate NUMERIC(7, 4), -- 경험치 백분율 (예: 85.1234%)
-    combat_power BIGINT NOT NULL DEFAULT 0, -- 전투력 수치
-    union_level INT DEFAULT 0, -- 유니온 레벨
-    union_artifact_level INT DEFAULT 0, -- 유니온 아티팩트 레벨
-    hexa_matrix_level_sum INT DEFAULT 0, -- 헥사코어 레벨 합산
-    
+    combat_power BIGINT, -- 전투력 수치
+    union_level INT, -- 유니온 레벨
+    union_artifact_level INT, -- 유니온 아티팩트 레벨
+    hexa_matrix_level_sum INT, -- 헥사코어 레벨 합산
+
     -- 원본 데이터 저장 (Diff 계산 및 세부 분석용 JSONB)
     raw_stat_json JSONB,      -- 주스탯, 보공, 방무, 크뎀 등 스탯 상세
     raw_equipment_json JSONB, -- 장비 착용 정보
     raw_hexa_json JSONB,      -- 헥사 매트릭스 상세
-    
+
+    captured_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
+
     -- 캐릭터당 하루에 하나의 스냅샷만 유지
     CONSTRAINT uq_character_snapshot_date UNIQUE (character_id, snapshot_date)
 );
@@ -61,13 +64,18 @@ CREATE TABLE IF NOT EXISTS growth_event_logs (
     
     -- 이벤트 종류: LEVEL_UP, COMBAT_POWER_CHANGE, ITEM_REPLACED, HEXA_UPGRADED, UNION_UPGRADED
     event_type VARCHAR(50) NOT NULL,
+    event_key VARCHAR(255) NOT NULL,
     title VARCHAR(255) NOT NULL, -- 예: "Lv.285 → Lv.286 레벨업!" 또는 "아케인셰이드 글러브 교체"
     description TEXT, -- 상세 변동 내역
     detail_json JSONB, -- 이전/이후 장비 정보나 스탯 차이 JSON
     importance_level INT DEFAULT 1, -- 1: 일반, 2: 중요(장비교체), 3: 주요 업적(레벨업/전투력 급증)
-    
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 인덱스: 캐릭터별 타임라인 이벤트 조회 최적화
 CREATE INDEX IF NOT EXISTS idx_event_logs_character_date ON growth_event_logs(character_id, event_date DESC);
+
+-- 이벤트 중복 방지
+CREATE UNIQUE INDEX IF NOT EXISTS uq_growth_event_snapshot_type_key
+    ON growth_event_logs(snapshot_id, event_type, event_key);

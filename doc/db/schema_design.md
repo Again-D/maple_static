@@ -45,6 +45,8 @@
 | `character_image_url`| TEXT | | 넥슨 아바타 이미지 CDN URL |
 | `is_auto_track` | BOOLEAN | DEFAULT TRUE | 매일 새벽 배치 수집 대상 여부 |
 | `last_fetched_at` | TIMESTAMP | | 마지막 넥슨 API 동기화 시각 |
+| `last_sync_attempted_at` | TIMESTAMP | | 마지막 동기화 시도 시각 |
+| `last_sync_error_code` | VARCHAR(50) | | 마지막 동기화 실패 코드 |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 최초 검색/등록 일시 |
 | `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 수정 일시 |
 
@@ -57,13 +59,14 @@
 | `level` | INT | NOT NULL | 캐릭터 레벨 |
 | `exp` | BIGINT | NOT NULL | 현재 경험치 수치 |
 | `exp_rate` | NUMERIC(7, 4)| | 경험치 백분율 (예: 85.1234%) |
-| `combat_power` | BIGINT | NOT NULL, DEFAULT 0 | 전투력 수치 |
-| `union_level` | INT | DEFAULT 0 | 유니온 레벨 |
-| `union_artifact_level` | INT | DEFAULT 0 | 유니온 아티팩트 레벨 |
-| `hexa_matrix_level_sum` | INT | DEFAULT 0 | 헥사코어 레벨 합산 |
+| `combat_power` | BIGINT | NULL | 전투력 수치 |
+| `union_level` | INT | NULL | 유니온 레벨 |
+| `union_artifact_level` | INT | NULL | 유니온 아티팩트 레벨 |
+| `hexa_matrix_level_sum` | INT | NULL | 헥사코어 레벨 합산 |
 | `raw_stat_json` | JSONB | | 스탯 상세 원본 JSON (주스탯, 보공, 방무 등) |
 | `raw_equipment_json` | JSONB | | 장비 착용 정보 원본 JSON |
 | `raw_hexa_json` | JSONB | | 헥사 매트릭스 상세 원본 JSON |
+| `captured_at` | TIMESTAMP | NOT NULL, DEFAULT CURRENT_TIMESTAMP | 가장 최근 대표 수집 시각 |
 | `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 생성 시각 |
 
 * **복합 유니크 제약**: `UNIQUE(character_id, snapshot_date)` (캐릭터당 하루 1개의 스냅샷만 허용)
@@ -76,6 +79,7 @@
 | `snapshot_id` | BIGINT | FOREIGN KEY (daily_snapshots.id) | 감지된 스냅샷 FK |
 | `event_date` | DATE | NOT NULL | 이벤트 발생 일자 |
 | `event_type` | VARCHAR(50) | NOT NULL | `LEVEL_UP`, `COMBAT_POWER_CHANGE`, `ITEM_REPLACED`, `HEXA_UPGRADED`, `UNION_UPGRADED` |
+| `event_key` | VARCHAR(255) | NOT NULL | 이벤트 중복 방지용 안정 키 |
 | `title` | VARCHAR(255)| NOT NULL | 타임라인 제목 (예: "Lv.285 → Lv.286 레벨업!") |
 | `description` | TEXT | | 변동 상세 내역 문구 |
 | `detail_json` | JSONB | | 이전/이후 차이(Diff) 데이터 JSON |
@@ -91,9 +95,3 @@
    - 최근 7일/30일 성장 그래프용 스냅샷 조회 시 인덱스 스캔 처리.
 3. **`idx_event_logs_character_date`**: `growth_event_logs(character_id, event_date DESC)`
    - 캐릭터 타임라인 피드 생성 시 빠른 최신순 페이징 지원.
-
----
-
-## 📜 5. DDL 스크립트 위치
-
-전체 실행 가능한 SQL 스크립트는 프로젝트 내부 [database/schema.sql](file:///e:/projects/Maple/database/schema.sql)에 작성되어 있습니다.
