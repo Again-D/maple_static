@@ -9,6 +9,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.maple.growth.dto.api.ApiErrorCode;
 import com.maple.growth.dto.nexon.NexonCharacterSnapshot;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -17,6 +19,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 @Service
 @RequiredArgsConstructor
 public class NexonApiClient {
+
+    private static final Logger log = LoggerFactory.getLogger(NexonApiClient.class);
 
     private final WebClient nexonWebClient;
     private final Duration nexonTimeout;
@@ -50,12 +54,34 @@ public class NexonApiClient {
                     equipmentPayload,
                     hexaPayload
             );
+        } catch (NexonApiException e) {
+            log.warn(
+                    "Nexon snapshot fetch failed. characterName={}, snapshotDate={}, errorCode={}, retryable={}, message={}",
+                    characterName,
+                    snapshotDate,
+                    e.getErrorCode(),
+                    e.isRetryable(),
+                    e.getMessage()
+            );
+            throw e;
         } catch (WebClientResponseException e) {
+            log.warn(
+                    "Nexon HTTP error. characterName={}, snapshotDate={}, status={}, responseBody={}",
+                    characterName,
+                    snapshotDate,
+                    e.getStatusCode().value(),
+                    truncate(e.getResponseBodyAsString())
+            );
             throw mapHttpException(e);
         } catch (RuntimeException e) {
-            if (e instanceof NexonApiException) {
-                throw e;
-            }
+            log.warn(
+                    "Unexpected Nexon snapshot failure. characterName={}, snapshotDate={}, exceptionType={}, message={}",
+                    characterName,
+                    snapshotDate,
+                    e.getClass().getSimpleName(),
+                    e.getMessage(),
+                    e
+            );
             throw new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 호출에 실패했습니다.", true);
         }
     }
@@ -184,5 +210,13 @@ public class NexonApiClient {
             seen = true;
         }
         return seen ? sum : null;
+    }
+
+    private static String truncate(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= 500 ? normalized : normalized.substring(0, 500) + "...";
     }
 }
