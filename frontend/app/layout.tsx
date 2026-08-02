@@ -8,14 +8,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const enableNexonAnalytics = process.env.NODE_ENV === "production";
-
   return (
     <html lang="ko">
       <head>
-        {enableNexonAnalytics ? (
-          <script type="text/javascript" src="https://openapi.nexon.com/js/analytics.js?app_id=321861" async></script>
-        ) : null}
+        <script type="text/javascript" src="https://openapi.nexon.com/js/analytics.js?app_id=321861" async></script>
       </head>
       <body>{children}</body>
     </html>
