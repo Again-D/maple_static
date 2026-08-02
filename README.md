@@ -20,6 +20,24 @@ It pairs a Spring Boot backend, a Next.js frontend, and a Supabase PostgreSQL sc
 5. Start the backend from `backend/`.
 6. Start the frontend from `frontend/`.
 
+### Docker
+
+You can run the full local stack with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- PostgreSQL on `localhost:5432`
+- Spring Boot backend on `localhost:8080`
+- Next.js frontend on `localhost:3000`
+
+The compose file seeds the database schema from [`database/schema.sql`](database/schema.sql).
+By default it uses a placeholder Nexon API key so the stack can boot without local secret files.
+Set `NEXON_API_KEY` in your shell or a local `.env` file before starting if you want to test real Nexon lookups.
+
 ### Backend
 
 Backend configuration is loaded from environment variables. The important values are:
