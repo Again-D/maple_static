@@ -73,6 +73,13 @@ Next.js 프론트엔드는 아래 환경 변수를 기준으로 설정한다.
 6. Next.js 프론트엔드를 실행한다.
 7. 브라우저에서 `/`에 접속해 캐릭터 검색을 검증한다.
 
+Docker Compose로 실행할 때는 아래 두 경로를 선택할 수 있다.
+
+- 로컬 PostgreSQL: `docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.local up --build`
+- Supabase PostgreSQL: `docker compose -f docker-compose.yml -f docker-compose.supabase.yml --env-file .env.supabase up --build`
+
+각 경로의 예시 변수는 [`.env.local.example`](../../.env.local.example)와 [`.env.supabase.example`](../../.env.supabase.example)를 따른다.
+
 - O18. 로컬 DB schema는 `database/schema.sql`을 기준으로 생성한다.
 - O19. 백엔드는 `/api/v1/characters/{name}` 호출이 Nexon API와 DB 저장까지 수행되는지 먼저 확인한다.
 - O20. 프론트엔드는 `NEXT_PUBLIC_API_BASE_URL`을 통해서만 백엔드와 통신한다.

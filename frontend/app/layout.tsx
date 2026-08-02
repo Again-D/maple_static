@@ -10,6 +10,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ko">
+      <head>
+        <script type="text/javascript" src="https://openapi.nexon.com/js/analytics.js?app_id=321861" async></script>
+      </head>
       <body>{children}</body>
     </html>
   );

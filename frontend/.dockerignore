@@ -1,0 +1,6 @@
+.next
+.test-dist
+node_modules
+.git
+.idea
+*.log
