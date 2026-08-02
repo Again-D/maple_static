@@ -22,10 +22,15 @@ It pairs a Spring Boot backend, a Next.js frontend, and a Supabase PostgreSQL sc
 
 ### Docker
 
-You can run the full local stack with Docker Compose:
+There are two selectable Docker paths:
+
+#### Local PostgreSQL
+
+1. Copy [`.env.local.example`](.env.local.example) to `.env.local` and fill in any values you want to override.
+2. Start the stack:
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.local up --build
 ```
 
 This starts:
@@ -34,9 +39,18 @@ This starts:
 - Spring Boot backend on `localhost:8080`
 - Next.js frontend on `localhost:3000`
 
-The compose file seeds the database schema from [`database/schema.sql`](database/schema.sql).
-By default it uses a placeholder Nexon API key so the stack can boot without local secret files.
-Set `NEXON_API_KEY` in your shell or a local `.env` file before starting if you want to test real Nexon lookups.
+The local database is seeded from [`database/schema.sql`](database/schema.sql).
+
+#### Supabase PostgreSQL
+
+1. Copy [`.env.supabase.example`](.env.supabase.example) to `.env.supabase` and fill in your Supabase values.
+2. Start the stack:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.supabase.yml --env-file .env.supabase up --build
+```
+
+This keeps the frontend and backend in Docker, but points the backend at Supabase instead of the local `postgres` container.
 
 ### Backend
 
