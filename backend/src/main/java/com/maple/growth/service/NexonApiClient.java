@@ -3,8 +3,6 @@ package com.maple.growth.service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,7 +21,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 public class NexonApiClient {
 
     private static final Logger log = LoggerFactory.getLogger(NexonApiClient.class);
-    private static final Pattern OPEN_API_ERROR_NAME_PATTERN = Pattern.compile("\"name\"\\s*:\\s*\"(OPENAPI\\d{5})\"");
 
     private final WebClient nexonWebClient;
     private final Duration nexonTimeout;
@@ -67,15 +64,6 @@ public class NexonApiClient {
                     e.getMessage()
             );
             throw e;
-        } catch (WebClientResponseException e) {
-            log.warn(
-                    "Nexon HTTP error. characterName={}, snapshotDate={}, status={}, responseBody={}",
-                    characterName,
-                    snapshotDate,
-                    e.getStatusCode().value(),
-                    truncate(e.getResponseBodyAsString())
-            );
-            throw mapHttpException(e);
         } catch (RuntimeException e) {
             log.warn(
                     "Unexpected Nexon snapshot failure. characterName={}, snapshotDate={}, exceptionType={}, message={}",
@@ -96,8 +84,8 @@ public class NexonApiClient {
                     .retrieve()
                     .bodyToMono(JsonNode.class)
                     .block(nexonTimeout);
-        } catch (WebClientResponseException e) {
-            throw e;
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            throw mapHttpException(path, paramName, e);
         } catch (Exception e) {
             throw new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 호출이 시간 초과되었습니다.", true);
         }
@@ -111,14 +99,21 @@ public class NexonApiClient {
         }
     }
 
-    private NexonApiException mapHttpException(WebClientResponseException exception) {
+    private NexonApiException mapHttpException(String path, String paramName, org.springframework.web.reactive.function.client.WebClientResponseException exception) {
         HttpStatusCode status = exception.getStatusCode();
         String openApiErrorName = extractOpenApiErrorName(exception.getResponseBodyAsString());
-        if ("OPENAPI00004".equals(openApiErrorName)) {
+        log.warn(
+                "Nexon HTTP error. path={}, paramName={}, status={}, errorCode={}",
+                path,
+                paramName,
+                status.value(),
+                openApiErrorName == null ? "UNKNOWN" : openApiErrorName
+        );
+        if ("OPENAPI00004".equals(openApiErrorName) && "/maplestory/v1/id".equals(path) && "character_name".equals(paramName)) {
             return new NexonApiException(ApiErrorCode.INVALID_CHARACTER_NAME, "캐릭터명을 다시 확인해 주세요.", false);
         }
         if ("OPENAPI00005".equals(openApiErrorName)) {
-            return new NexonApiException(ApiErrorCode.NEXON_API_FAILED, "Nexon API 키가 유효하지 않습니다.", false);
+            return new NexonApiException(ApiErrorCode.NEXON_API_AUTH_FAILED, "Nexon API 키가 유효하지 않습니다.", false);
         }
         if (status.value() == 404) {
             return new NexonApiException(ApiErrorCode.CHARACTER_NOT_FOUND, "캐릭터를 찾을 수 없습니다.", false);
@@ -139,8 +134,20 @@ public class NexonApiClient {
         if (responseBody == null || responseBody.isBlank()) {
             return null;
         }
-        Matcher matcher = OPEN_API_ERROR_NAME_PATTERN.matcher(responseBody);
-        return matcher.find() ? matcher.group(1) : null;
+        int errorIndex = responseBody.indexOf("\"name\"");
+        if (errorIndex < 0) {
+            return null;
+        }
+        int valueStart = responseBody.indexOf('"', errorIndex + 6);
+        if (valueStart < 0) {
+            return null;
+        }
+        int valueEnd = responseBody.indexOf('"', valueStart + 1);
+        if (valueEnd < 0) {
+            return null;
+        }
+        String value = responseBody.substring(valueStart + 1, valueEnd);
+        return value.startsWith("OPENAPI") ? value : null;
     }
 
     private static String requiredText(JsonNode node, String field) {
@@ -230,11 +237,4 @@ public class NexonApiClient {
         return seen ? sum : null;
     }
 
-    private static String truncate(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        String normalized = value.replaceAll("\\s+", " ").trim();
-        return normalized.length() <= 500 ? normalized : normalized.substring(0, 500) + "...";
-    }
 }
