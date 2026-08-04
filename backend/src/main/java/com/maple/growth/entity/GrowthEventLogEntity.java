@@ -39,7 +39,7 @@ public class GrowthEventLogEntity {
     private CharacterEntity character;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "snapshot_id")
+    @JoinColumn(name = "snapshot_id", nullable = false)
     private DailySnapshotEntity snapshot;
 
     @Column(name = "event_date", nullable = false)
