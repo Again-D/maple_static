@@ -2,7 +2,6 @@ package com.maple.growth.scheduler;
 
 import java.util.List;
 
-import com.maple.growth.config.AppProperties;
 import com.maple.growth.entity.CharacterEntity;
 import com.maple.growth.repository.CharacterRepository;
 import com.maple.growth.service.SnapshotSyncService;
@@ -21,8 +20,7 @@ class DailySnapshotSchedulerTest {
     void schedulerProcessesAutoTrackedCharactersAndContinuesAfterFailure() {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         SnapshotSyncService snapshotSyncService = mock(SnapshotSyncService.class);
-        AppProperties appProperties = new AppProperties("Asia/Seoul", "0 0 4 * * *", "http://localhost:3000", "https://open.api.nexon.com", 10);
-        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(appProperties, characterRepository, snapshotSyncService);
+        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService);
 
         CharacterEntity first = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         first.setAutoTrack(true);

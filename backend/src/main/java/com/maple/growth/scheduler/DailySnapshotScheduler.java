@@ -1,6 +1,5 @@
 package com.maple.growth.scheduler;
 
-import com.maple.growth.config.AppProperties;
 import com.maple.growth.entity.CharacterEntity;
 import com.maple.growth.repository.CharacterRepository;
 import com.maple.growth.service.SnapshotSyncService;
@@ -14,7 +13,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DailySnapshotScheduler {
 
-    private final AppProperties appProperties;
     private final CharacterRepository characterRepository;
     private final SnapshotSyncService snapshotSyncService;
 
