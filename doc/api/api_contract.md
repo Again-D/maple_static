@@ -55,6 +55,7 @@
 | 400 | `INVALID_CHARACTER_NAME` | false | 닉네임이 비어 있거나 허용되지 않는 형식이다. |
 | 404 | `CHARACTER_NOT_FOUND` | false | Nexon OpenAPI에서 캐릭터를 찾을 수 없다. |
 | 429 | `RATE_LIMITED` | true | 외부 API 또는 서비스 호출 제한에 걸렸다. |
+| 502 | `NEXON_API_AUTH_FAILED` | false | Nexon OpenAPI 키가 유효하지 않다. |
 | 502 | `NEXON_API_FAILED` | true | Nexon OpenAPI 호출이 실패했다. |
 | 503 | `NEXON_API_UNAVAILABLE` | true | Nexon OpenAPI가 일시적으로 사용할 수 없다. |
 | 500 | `INTERNAL_ERROR` | true | 서비스 내부 오류다. |
@@ -223,6 +224,7 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
 - `INVALID_CHARACTER_NAME`
 - `CHARACTER_NOT_FOUND`
 - `RATE_LIMITED`
+- `NEXON_API_AUTH_FAILED`
 - `NEXON_API_FAILED`
 - `NEXON_API_UNAVAILABLE`
 

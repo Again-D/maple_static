@@ -156,6 +156,39 @@ class NexonApiClientTest {
     }
 
     @Test
+    void openApiInvalidParameterFromDetailEndpointStaysGenericFailure() {
+        server.enqueue(new MockResponse().setBody("{\"ocid\":\"ocid-123\"}").addHeader("Content-Type", "application/json"));
+        server.enqueue(new MockResponse()
+                .setResponseCode(400)
+                .setBody("{\"error\":{\"name\":\"OPENAPI00004\",\"message\":\"Please input valid parameter\"}}")
+                .addHeader("Content-Type", "application/json"));
+        WebClient webClient = WebClient.builder().baseUrl(server.url("/").toString()).build();
+        NexonApiClient client = new NexonApiClient(webClient, Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> client.fetchCharacterSnapshot("Aries92", LocalDate.of(2026, 8, 2)))
+                .isInstanceOfSatisfying(NexonApiException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.NEXON_API_FAILED);
+                    assertThat(exception.isRetryable()).isTrue();
+                });
+    }
+
+    @Test
+    void openApiInvalidApiKeyMapsToDistinctAuthFailure() {
+        server.enqueue(new MockResponse()
+                .setResponseCode(400)
+                .setBody("{\"error\":{\"name\":\"OPENAPI00005\",\"message\":\"Please input valid parameter\"}}")
+                .addHeader("Content-Type", "application/json"));
+        WebClient webClient = WebClient.builder().baseUrl(server.url("/").toString()).build();
+        NexonApiClient client = new NexonApiClient(webClient, Duration.ofSeconds(1));
+
+        assertThatThrownBy(() -> client.fetchCharacterSnapshot("Aries92", LocalDate.of(2026, 8, 2)))
+                .isInstanceOfSatisfying(NexonApiException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ApiErrorCode.NEXON_API_AUTH_FAILED);
+                    assertThat(exception.isRetryable()).isFalse();
+                });
+    }
+
+    @Test
     void rateLimitMapsToRetryable() {
         server.enqueue(new MockResponse().setResponseCode(429));
         WebClient webClient = WebClient.builder().baseUrl(server.url("/").toString()).build();
