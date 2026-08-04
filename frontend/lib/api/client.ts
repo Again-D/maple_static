@@ -18,8 +18,7 @@ export function canSubmitSearch(value: string, submitting: boolean) {
 
 export function buildCharacterRoute(value: string) {
   const trimmed = normalizeCharacterName(value);
-  // Next.js router handles path encoding; keep the segment human-readable here.
-  return `/character/${trimmed}`;
+  return `/character/${encodeURIComponent(trimmed)}`;
 }
 
 export function getApiBaseUrl() {

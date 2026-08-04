@@ -130,6 +130,61 @@ class SnapshotSyncServiceTest {
     }
 
     @Test
+    void sameDayRefreshUpdatesExistingSnapshotInsteadOfAppending() {
+        CharacterRepository characterRepository = mock(CharacterRepository.class);
+        DailySnapshotRepository snapshotRepository = mock(DailySnapshotRepository.class);
+        GrowthEventLogRepository eventRepository = mock(GrowthEventLogRepository.class);
+        NexonApiClient client = mock(NexonApiClient.class);
+        GrowthEventService eventService = mock(GrowthEventService.class);
+        when(eventService.recomputeEvents(any(DailySnapshotEntity.class), isNull())).thenReturn(0);
+
+        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
+        character.setId(java.util.UUID.randomUUID());
+        DailySnapshotEntity existing = snapshot(character, 277, 1000L, new BigDecimal("35.1234"), 7300000L, 8380, 132, 130);
+        existing.setId(10L);
+        NexonCharacterSnapshot apiSnapshot = snapshot("ocid-1", "Aries92");
+        when(characterRepository.findByCharacterName("Aries92")).thenReturn(Optional.of(character));
+        when(snapshotRepository.findByCharacterAndSnapshotDate(character, kstClock.today())).thenReturn(Optional.of(existing));
+        when(snapshotRepository.save(any(DailySnapshotEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(snapshotRepository.findFirstByCharacterAndSnapshotDateLessThanOrderBySnapshotDateDescIdDesc(character, kstClock.today())).thenReturn(Optional.empty());
+        when(client.fetchCharacterSnapshot("Aries92", kstClock.today())).thenReturn(apiSnapshot);
+
+        SnapshotSyncService service = new SnapshotSyncService(characterRepository, snapshotRepository, eventRepository, client, eventService, kstClock, objectMapper, transactionManager);
+        RefreshResponseDto response = service.refresh("Aries92");
+
+        assertThat(response.snapshotUpdated()).isTrue();
+        assertThat(response.snapshotCreated()).isFalse();
+        verify(snapshotRepository).save(existing);
+    }
+
+    @Test
+    void firstSearchUsesKstDateEvenWhenSystemClockIsUtc() {
+        Clock utcClock = Clock.fixed(Instant.parse("2026-08-01T18:30:00Z"), ZoneOffset.UTC);
+        KstClock localKstClock = new KstClock(utcClock, appProperties);
+
+        CharacterRepository characterRepository = mock(CharacterRepository.class);
+        DailySnapshotRepository snapshotRepository = mock(DailySnapshotRepository.class);
+        GrowthEventLogRepository eventRepository = mock(GrowthEventLogRepository.class);
+        NexonApiClient client = mock(NexonApiClient.class);
+        GrowthEventService eventService = mock(GrowthEventService.class);
+        when(eventService.recomputeEvents(any(DailySnapshotEntity.class), isNull())).thenReturn(0);
+
+        NexonCharacterSnapshot apiSnapshot = snapshot("ocid-2", "Aries95");
+        when(characterRepository.findByCharacterName("Aries95")).thenReturn(Optional.empty());
+        when(characterRepository.save(any(CharacterEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(snapshotRepository.findByCharacterAndSnapshotDate(any(CharacterEntity.class), any(LocalDate.class))).thenReturn(Optional.empty());
+        when(snapshotRepository.save(any(DailySnapshotEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(snapshotRepository.findFirstByCharacterAndSnapshotDateLessThanOrderBySnapshotDateDescIdDesc(any(CharacterEntity.class), any(LocalDate.class))).thenReturn(Optional.empty());
+        when(client.fetchCharacterSnapshot("Aries95", localKstClock.today())).thenReturn(apiSnapshot);
+
+        SnapshotSyncService service = new SnapshotSyncService(characterRepository, snapshotRepository, eventRepository, client, eventService, localKstClock, objectMapper, transactionManager);
+        CharacterLookupResponseDto response = service.lookupOrRegister("Aries95");
+
+        assertThat(response.profile().name()).isEqualTo("Aries95");
+        verify(client).fetchCharacterSnapshot("Aries95", LocalDate.of(2026, 8, 2));
+    }
+
+    @Test
     void failedRefreshPreservesExistingLastFetchedAt() {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         DailySnapshotRepository snapshotRepository = mock(DailySnapshotRepository.class);

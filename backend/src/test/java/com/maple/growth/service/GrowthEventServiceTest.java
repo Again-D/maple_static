@@ -90,6 +90,89 @@ class GrowthEventServiceTest {
     }
 
     @Test
+    void combatPowerAtAbsoluteThresholdEmitsEvent() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-6", "Aries97", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 1_100_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        assertThat(service.buildEvents(current, previous)).extracting(GrowthEventLogEntity::getEventType)
+                .contains("COMBAT_POWER_CHANGE");
+    }
+
+    @Test
+    void combatPowerAtRatioThresholdEmitsEventEvenBelowAbsoluteThreshold() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-7", "Aries98", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 1_010_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        assertThat(service.buildEvents(current, previous)).extracting(GrowthEventLogEntity::getEventType)
+                .contains("COMBAT_POWER_CHANGE");
+    }
+
+    @Test
+    void combatPowerAtOnePercentWhenPreviousIsZeroDoesNotEmitEvent() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-8", "Aries99", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 0L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 50_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        assertThat(service.buildEvents(current, previous)).extracting(GrowthEventLogEntity::getEventType)
+                .doesNotContain("COMBAT_POWER_CHANGE");
+    }
+
+    @Test
+    void combatPowerBigChangeSetsImportanceTwo() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-9", "Aries100", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 2_050_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        GrowthEventLogEntity event = service.buildEvents(current, previous).stream()
+                .filter(item -> "COMBAT_POWER_CHANGE".equals(item.getEventType()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(event.getImportanceLevel()).isEqualTo(2);
+    }
+
+    @Test
+    void missingOptionalMetricsSkipOnlyTheirOwnEvents() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-10", "Aries101", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        previous.setHexaMatrixLevelSum(null);
+        previous.setUnionLevel(null);
+        previous.setUnionArtifactLevel(null);
+        DailySnapshotEntity current = snapshot(character, 101, 1_150_000L, new BigDecimal("10.5000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+        current.setHexaMatrixLevelSum(null);
+        current.setUnionLevel(810);
+        current.setUnionArtifactLevel(null);
+
+        List<GrowthEventLogEntity> events = service.buildEvents(current, previous);
+
+        assertThat(events).extracting(GrowthEventLogEntity::getEventType)
+                .contains("LEVEL_UP", "COMBAT_POWER_CHANGE")
+                .doesNotContain("HEXA_UPGRADED");
+    }
+
+    @Test
     void eventDescriptionsCarryBeforeAndAfterValues() {
         GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -108,6 +191,42 @@ class GrowthEventServiceTest {
                 assertThat(event.getDescription()).isEqualTo("1,000,000 -> 1,120,000");
             }
         });
+    }
+
+    @Test
+    void recomputeRemovesStaleGeneratedRowsBeforeSavingDesiredOnes() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-11", "Aries102", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 102, 1_120_000L, new BigDecimal("12.0000"), 1_120L, 820, 6, 2, LocalDate.of(2026, 8, 2));
+
+        when(repository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        int count = service.recomputeEvents(current, previous);
+
+        assertThat(count).isGreaterThan(0);
+        verify(repository).deleteBySnapshot(current);
+        verify(repository).saveAll(any());
+    }
+
+    @Test
+    void itemReplacedIsNotGenerated() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-12", "Aries103", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        current.setRawEquipmentJson(objectMapper.createObjectNode().put("weapon", "new"));
+        previous.setRawEquipmentJson(objectMapper.createObjectNode().put("weapon", "old"));
+
+        assertThat(service.buildEvents(current, previous)).extracting(GrowthEventLogEntity::getEventType)
+                .doesNotContain("ITEM_REPLACED");
     }
 
     private DailySnapshotEntity snapshot(CharacterEntity character, int level, long combatPower, BigDecimal expRate, Long exp, Integer unionLevel, Integer artifactLevel, Integer hexa, LocalDate date) {

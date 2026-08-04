@@ -9,7 +9,7 @@ type SyncStatusProps = {
 
 export function SyncStatus({ syncState, onRefresh, refreshing }: SyncStatusProps) {
   return (
-    <section className="panel panel--wide sync-status">
+    <section className="panel panel--wide sync-status" aria-busy={refreshing}>
       <div>
         <p className="eyebrow">Sync</p>
         <h2>{syncState.state === "fresh" ? "최신 상태" : syncState.state === "failed_with_cache" ? "캐시 유지" : syncState.state === "failed_empty" ? "데이터 없음" : "동기화 상태"}</h2>

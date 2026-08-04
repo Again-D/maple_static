@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.ZoneId;
+import java.time.LocalDate;
 import java.util.List;
 
 import com.maple.growth.dto.api.ApiErrorCode;
@@ -20,6 +21,7 @@ import com.maple.growth.dto.api.RefreshResponseDto;
 import com.maple.growth.dto.api.SnapshotSummaryDto;
 import com.maple.growth.dto.api.SyncStateDto;
 import com.maple.growth.dto.api.TimelineDto;
+import com.maple.growth.dto.api.GrowthEventDto;
 import com.maple.growth.service.CharacterLookupService;
 import com.maple.growth.service.KstClock;
 import com.maple.growth.service.NexonApiException;
@@ -93,6 +95,54 @@ class CharacterControllerTest {
         when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
 
         mockMvc.perform(get("/api/v1/characters/Aries92/growth-history").param("range", "30d"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value(ApiErrorCode.INVALID_CHARACTER_NAME.name()));
+    }
+
+    @Test
+    void growthHistorySevenDayRangeReturnsExistingPointsOnly() throws Exception {
+        when(kstClock.now()).thenReturn(OffsetDateTime.ofInstant(Instant.parse("2026-08-02T04:10:00Z"), ZoneOffset.ofHours(9)));
+        when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
+        when(characterLookupService.growthHistory(any(), anyInt())).thenReturn(new GrowthHistoryDto(
+                7,
+                List.of(new ChartPointDto(LocalDate.of(2026, 8, 1), 7300000L, 277, new BigDecimal("88.4200"), 8380, 132))
+        ));
+        when(characterLookupService.requireExisting(anyString())).thenReturn(new com.maple.growth.entity.CharacterEntity("ocid", "Aries92", "루나", "나이트로드", "male", "img"));
+
+        mockMvc.perform(get("/api/v1/characters/Aries92/growth-history"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rangeDays").value(7))
+                .andExpect(jsonPath("$.data.points.length()").value(1))
+                .andExpect(jsonPath("$.meta.timezone").value("Asia/Seoul"));
+    }
+
+    @Test
+    void eventsEndpointReturnsLatestFirstAndCursorState() throws Exception {
+        when(kstClock.now()).thenReturn(OffsetDateTime.ofInstant(Instant.parse("2026-08-02T04:10:00Z"), ZoneOffset.ofHours(9)));
+        when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
+        when(characterLookupService.events(any(), anyInt())).thenReturn(new EventsResponseDto(
+                List.of(
+                        new GrowthEventDto(2L, "2026-08-02", "HEXA_UPGRADED", 2, "헥사 매트릭스 +1", null, java.util.Map.of()),
+                        new GrowthEventDto(1L, "2026-08-02", "LEVEL_UP", 3, "Lv.277 -> Lv.278 레벨업", null, java.util.Map.of())
+                ),
+                true,
+                "1"
+        ));
+        when(characterLookupService.requireExisting(anyString())).thenReturn(new com.maple.growth.entity.CharacterEntity("ocid", "Aries92", "루나", "나이트로드", "male", "img"));
+
+        mockMvc.perform(get("/api/v1/characters/Aries92/events").param("limit", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].id").value(2))
+                .andExpect(jsonPath("$.data.hasMore").value(true))
+                .andExpect(jsonPath("$.data.nextCursor").value("1"));
+    }
+
+    @Test
+    void invalidLimitReturns400() throws Exception {
+        when(kstClock.now()).thenReturn(OffsetDateTime.ofInstant(Instant.parse("2026-08-02T04:10:00Z"), ZoneOffset.ofHours(9)));
+        when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
+
+        mockMvc.perform(get("/api/v1/characters/Aries92/events").param("limit", "101"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value(ApiErrorCode.INVALID_CHARACTER_NAME.name()));
     }

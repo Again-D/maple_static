@@ -20,6 +20,15 @@ It pairs a Spring Boot backend, a Next.js frontend, and a Supabase PostgreSQL sc
 5. Start the backend from `backend/`.
 6. Start the frontend from `frontend/`.
 
+## Local Setup
+
+1. Apply [`database/schema.sql`](database/schema.sql) to PostgreSQL or Supabase first.
+2. Keep backend-only secrets such as `NEXON_API_KEY` in a backend env file, not in the frontend.
+3. Keep browser-visible values limited to `NEXT_PUBLIC_` variables in the frontend env file.
+4. Use [`.env.local.example`](.env.local.example) for the local Docker path.
+5. Use [`.env.supabase.example`](.env.supabase.example) for the Supabase Docker path.
+6. Start the backend before the frontend.
+
 ### Docker
 
 There are two selectable Docker paths:
@@ -115,6 +124,7 @@ The first manual smoke path is:
 3. Open `/` and search for a character nickname.
 4. Confirm the app routes to `/character/[name]`.
 5. Confirm the dashboard renders either character data or a well-formed failure state.
+6. If Nexon or credentials are unavailable, confirm the dashboard shows the correct retryable or not-found state and keeps cached data visible when it exists.
 
 Useful verification commands:
 

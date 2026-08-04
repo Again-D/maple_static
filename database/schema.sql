@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_character_date ON daily_snapshots(chara
 CREATE TABLE IF NOT EXISTS growth_event_logs (
     id BIGSERIAL PRIMARY KEY,
     character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-    snapshot_id BIGINT REFERENCES daily_snapshots(id) ON DELETE CASCADE,
+    snapshot_id BIGINT NOT NULL REFERENCES daily_snapshots(id) ON DELETE CASCADE,
     event_date DATE NOT NULL,
     
     -- 이벤트 종류: LEVEL_UP, COMBAT_POWER_CHANGE, ITEM_REPLACED, HEXA_UPGRADED, UNION_UPGRADED
