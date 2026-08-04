@@ -1,9 +1,11 @@
 import { CharacterDashboardClient } from "../../../components/CharacterDashboardClient";
 
 type CharacterPageProps = {
-  params: { name: string };
+  params: {
+    name: string;
+  };
 };
 
 export default function CharacterPage({ params }: CharacterPageProps) {
-  return <CharacterDashboardClient name={params.name} />;
+  return <CharacterDashboardClient name={decodeURIComponent(params.name)} />;
 }
