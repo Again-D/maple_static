@@ -20,7 +20,7 @@ type CharacterDashboardViewProps = {
 
 function LoadingSkeleton({ name }: { name: string }) {
   return (
-    <main className="shell">
+    <main className="shell" aria-busy="true" aria-live="polite">
       <section className="hero-card">
         <p className="eyebrow">Character Dashboard</p>
         <h1>{name}</h1>

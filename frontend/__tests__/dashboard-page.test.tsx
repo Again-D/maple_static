@@ -100,6 +100,7 @@ describe("dashboard page", () => {
     );
 
     assert.match(html, /대시보드를 불러오는 중입니다/);
+    assert.match(html, /aria-busy="true"/);
   });
 
   it("renders one-snapshot or data-insufficient states clearly", () => {
@@ -138,6 +139,25 @@ describe("dashboard page", () => {
     assert.match(html, /캐릭터의 현재 상태와 최근 7일 성장 흐름/);
     assert.match(html, /전투력 변화/);
     assert.match(html, /새로고침이 완료되었습니다/);
+  });
+
+  it("renders refreshing state without hiding cached content", () => {
+    const html = renderToStaticMarkup(
+      <CharacterDashboardView
+        name="Aries92"
+        status="ready"
+        data={sampleData}
+        errorMessage={null}
+        banner={null}
+        refreshing={true}
+        onRefresh={() => undefined}
+        onRetry={() => undefined}
+      />
+    );
+
+    assert.match(html, /Aries92/);
+    assert.match(html, /새로고침 중\.\.\./);
+    assert.match(html, /aria-busy="true"/);
   });
 
   it("shows distinct not-found and error states", () => {
