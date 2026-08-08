@@ -91,6 +91,7 @@ The MVP focuses on one public lookup flow and treats data history as derived fro
 - R30. Loading, empty, not-found, API failure, rate-limited, and mobile states are implemented.
 - R31. Rising/falling values are not communicated by color alone.
 - R32. The product remains anonymous and login-free.
+- R33. A scheduler trigger does not start a second collection while another collection is active; it waits up to the configured limit and then skips without collecting duplicate snapshots.
 
 ### Key Flows
 
@@ -116,9 +117,9 @@ The MVP focuses on one public lookup flow and treats data history as derived fro
   - **Covered by:** R4, R24, R25, R26, R27, R30.
 - F5. **Automatic collection**
   - **Trigger:** The backend scheduler fires at 04:00 KST.
-  - **Steps:** Select auto-tracked characters; process each in its own transaction; continue after per-character failure; log counts without secrets or raw JSON.
+  - **Steps:** Acquire the process-local scheduler run guard; if another run is active, wait up to `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS` and skip on timeout; otherwise select auto-tracked characters, process each in its own transaction, continue after per-character failure, and log counts without secrets or raw JSON.
   - **Outcome:** Daily representative snapshots and derived events are ready for future dashboards.
-  - **Covered by:** R9, R10, R11, R12, R13, R17, R21.
+  - **Covered by:** R9, R10, R11, R12, R13, R17, R21, R33.
 
 ### Acceptance Examples
 
@@ -147,6 +148,11 @@ The MVP focuses on one public lookup flow and treats data history as derived fro
   - **When:** A lookup happens near a local-system date boundary.
   - **Then:** `snapshot_date` uses `Asia/Seoul`, not the server timezone.
   - **Covers:** R9, R13.
+- AE6. **Overlapping scheduler run is bounded and skipped**
+  - **Given:** One automatic collection is already running and `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS` is set to a positive value.
+  - **When:** A second scheduler trigger fires.
+  - **Then:** The second trigger waits no longer than the configured limit, performs no snapshot collection, and logs that it was skipped due to an active run.
+  - **Covers:** R33.
 
 ### Scope Boundaries
 
@@ -158,7 +164,7 @@ The MVP focuses on one public lookup flow and treats data history as derived fro
 - Detailed equipment diff drawer and automatic `ITEM_REPLACED` generation.
 - Admin collection dashboard.
 - Durable retry queue, dead-letter handling, and long-term scheduler recovery.
-- Multi-instance scheduler locking unless production launch requires horizontal backend scaling.
+- Multi-instance scheduler locking unless production launch requires horizontal backend scaling. Overlapping runs within one scheduler process use the bounded wait policy defined in the ops contract.
 
 ### Outside This MVP
 
@@ -181,7 +187,7 @@ The MVP focuses on one public lookup flow and treats data history as derived fro
 - KTD7. **Unknown optional metrics stay unknown:** Store unavailable optional metrics as `null` instead of defaulting them to `0`. This prevents partial Nexon responses from creating false zero-value charts or false downgrade/change events.
 - KTD8. **Events are derived data for a representative snapshot:** Recompute supported MVP event rows idempotently after each successful snapshot upsert. Same-day refresh may update or delete stale generated events for the same `snapshot_id`.
 - KTD9. **Refresh returns lightweight result, frontend refetches dashboard:** Keep `POST /refresh` aligned with `doc/api/api_contract.md`, then refetch `GET /dashboard` after success. This avoids duplicating dashboard aggregation logic in the refresh response.
-- KTD10. **Single-instance scheduler for MVP:** Use Spring `@Scheduled` with a six-field cron and `zone = "Asia/Seoul"` or equivalent property binding. Multi-instance locking is deferred unless production deployment requires more than one backend scheduler instance.
+- KTD10. **Bounded scheduler overlap handling:** Use Spring `@Scheduled` with a six-field cron and `zone = "Asia/Seoul"` or equivalent property binding. If a run is already active, a subsequent trigger waits up to `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS` (default 300 seconds), then skips without collecting duplicate snapshots. Values at or below zero are invalid. Cross-instance locking remains deferred unless production deployment requires horizontal scaling.
 - KTD11. **Public frontend env values are build-visible:** Treat `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_APP_TIMEZONE` as public values because Next.js inlines `NEXT_PUBLIC_` variables into browser bundles. No secret may use that prefix.
 
 ### High-Level Technical Design
@@ -472,7 +478,7 @@ docs/plans/
 
 ### U7. Scheduler and ops config
 
-- **Goal:** Add automatic 04:00 KST snapshot collection and operational configuration without introducing multi-instance complexity.
+- **Goal:** Add automatic 04:00 KST snapshot collection and bounded overlap handling without introducing multi-instance locking complexity.
 - **Requirements:** R11-R13, R17-R21, R26-R27.
 - **Dependencies:** U4, U5.
 - **Files:**
@@ -482,15 +488,22 @@ docs/plans/
   - `backend/src/test/java/com/maple/growth/scheduler/DailySnapshotSchedulerTest.java`
   - `doc/ops/env_and_deployment.md`
 - **Approach:**
-  1. Bind `APP_TIMEZONE`, `APP_SNAPSHOT_CRON`, CORS, Nexon URL, and timeout settings.
+  1. Bind `APP_TIMEZONE`, `APP_SNAPSHOT_CRON`, `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`, CORS, Nexon URL, and timeout settings.
   2. Use Spring scheduling with a 04:00 KST cron and timezone-aware execution.
-  3. Select only `is_auto_track=true` characters.
-  4. Process each character independently so one failure does not stop the batch.
-  5. Log batch start/end, target count, success count, and failure count without secrets or raw JSON.
-  6. Document the single-instance scheduler assumption in the ops doc if implementation details make it concrete.
+  3. Bind the overlap wait setting into `AppProperties`, default it to 300 seconds, and fail application startup for non-positive values.
+  4. Guard the scheduler method with a process-local lock; a contending trigger waits up to the configured limit and then returns without snapshot collection.
+  5. Select only `is_auto_track=true` characters after acquiring the guard.
+  6. Process each character independently so one failure does not stop the batch.
+  7. Log batch start/end, target count, success count, failure count, and overlap skips without secrets or raw JSON.
+  8. Test lock release after success and after batch failure, plus timeout-based skip without invoking `SnapshotSyncService`.
+  9. Document that cross-instance locking remains deferred unless horizontal scaling is enabled.
 - **Patterns to follow:** `doc/ops/env_and_deployment.md` O11-O34 and Spring's six-field cron semantics.
 - **Test scenarios:**
   - Scheduler uses `Asia/Seoul` for the configured trigger.
+  - An overlapping trigger waits for the active run and skips after the configured limit.
+  - The default overlap wait is 300 seconds and non-positive values are rejected.
+  - The run guard is released when the active collection exits, including unexpected batch-level failure.
+  - A timeout-based skip does not query or refresh characters.
   - Scheduler selects auto-tracked characters only.
   - One character failure does not prevent later characters from syncing.
   - Failed scheduler sync does not update `last_fetched_at`.

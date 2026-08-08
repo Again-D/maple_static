@@ -39,6 +39,7 @@ Spring Boot 백엔드는 아래 환경 변수를 기준으로 설정한다.
 | `SPRING_DATASOURCE_PASSWORD` | yes | `********` | DB 비밀번호 |
 | `APP_TIMEZONE` | yes | `Asia/Seoul` | 서비스 날짜 계산 기준 |
 | `APP_SNAPSHOT_CRON` | yes | `0 0 4 * * *` | 자동 스냅샷 수집 cron |
+| `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS` | no | `300` | 중복 스케줄 실행 대기 상한(초) |
 | `APP_CORS_ALLOWED_ORIGINS` | yes | `http://localhost:3000` | 프론트엔드 허용 origin |
 | `APP_NEXON_BASE_URL` | no | `https://open.api.nexon.com` | Nexon API base URL |
 | `APP_NEXON_TIMEOUT_SECONDS` | no | `10` | Nexon API 호출 timeout |
@@ -47,6 +48,9 @@ Spring Boot 백엔드는 아래 환경 변수를 기준으로 설정한다.
 - O12. `APP_SNAPSHOT_CRON`의 MVP 기본값은 한국 시간 기준 매일 04:00 실행이다.
 - O13. 서버 물리 타임존과 무관하게 스냅샷 날짜 계산은 `APP_TIMEZONE`을 사용한다.
 - O14. 운영 환경의 CORS origin은 실제 프론트엔드 도메인만 허용한다.
+- O14a. `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`의 기본값은 300초(5분)이다.
+- O14b. 이미 자동 수집이 진행 중이면 후속 실행은 설정된 대기 상한까지 기다린 뒤 중복 수집을 건너뛴다.
+- O14c. `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`가 0 이하이면 애플리케이션 시작을 실패시키고 스케줄러를 활성화하지 않는다.
 
 ## 5. 프론트엔드 환경 변수
 
@@ -120,6 +124,7 @@ MVP에서 최소로 남겨야 하는 로그는 아래와 같다.
 | Nexon API 실패 | API 종류, HTTP status, retryable 여부 |
 | 수동 새로고침 성공/실패 | 캐릭터 이름, 요청 시각, 결과 |
 | 자동 수집 시작/종료 | 대상 수, 성공 수, 실패 수 |
+| 중복 스케줄 실행 건너뜀 | 대기 시간, 제한 초과 여부, 건너뛴 사유 |
 | 이벤트 생성 | 캐릭터 이름, snapshot id, event type |
 
 - O32. 로그에 Nexon API Key, DB 비밀번호, 전체 원본 응답을 남기지 않는다.
@@ -138,6 +143,7 @@ MVP에서 최소로 남겨야 하는 로그는 아래와 같다.
 - AC8. 같은 날짜 수동 새로고침이 새 row를 만들지 않고 당일 스냅샷을 갱신한다.
 - AC9. Nexon API 실패 시 기존 데이터가 있는 대시보드는 유지된다.
 - AC10. 자동 수집 로그에서 대상 수, 성공 수, 실패 수를 확인할 수 있다.
+- AC11. 중복 실행 시 대기 상한, 제한 초과 후 건너뛰기, 잘못된 대기값에 대한 시작 실패를 확인할 수 있다.
 
 ## 11. MVP 이후 재검토 항목
 

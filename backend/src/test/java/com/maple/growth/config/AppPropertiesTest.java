@@ -10,16 +10,25 @@ class AppPropertiesTest {
 
     @Test
     void defaultsUseSeoulTimezoneAndFourAmCron() {
-        AppProperties properties = new AppProperties(null, null, null, null, 0);
+        AppProperties properties = new AppProperties(null, null, null, null, 0, null);
 
         assertThat(properties.timezone()).isEqualTo("Asia/Seoul");
         assertThat(properties.snapshotCron()).isEqualTo("0 0 4 * * *");
+        assertThat(properties.schedulerDuplicateWaitSeconds()).isEqualTo(300);
         assertThat(properties.zoneId().getId()).isEqualTo("Asia/Seoul");
     }
 
     @Test
+    void rejectsNonPositiveSchedulerDuplicateWait() {
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> new AppProperties("Asia/Seoul", "0 0 4 * * *", "http://localhost:3000", "https://open.api.nexon.com", 10, 0)
+        );
+    }
+
+    @Test
     void allowedOriginsAreTrimmedAndFiltered() {
-        AppProperties properties = new AppProperties("Asia/Seoul", "0 0 4 * * *", " http://localhost:3000 , ,https://example.com ", "https://open.api.nexon.com", 10);
+        AppProperties properties = new AppProperties("Asia/Seoul", "0 0 4 * * *", " http://localhost:3000 , ,https://example.com ", "https://open.api.nexon.com", 10, 300);
 
         assertThat(properties.allowedOrigins()).isEqualTo(List.of("http://localhost:3000", "https://example.com"));
     }

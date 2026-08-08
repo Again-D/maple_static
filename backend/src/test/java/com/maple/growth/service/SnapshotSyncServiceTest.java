@@ -41,7 +41,7 @@ import static org.mockito.Mockito.when;
 class SnapshotSyncServiceTest {
 
     private final Clock fixedClock = Clock.fixed(Instant.parse("2026-08-01T18:30:00Z"), ZoneOffset.UTC);
-    private final AppProperties appProperties = new AppProperties("Asia/Seoul", "0 0 4 * * *", "http://localhost:3000", "https://open.api.nexon.com", 10);
+    private final AppProperties appProperties = new AppProperties("Asia/Seoul", "0 0 4 * * *", "http://localhost:3000", "https://open.api.nexon.com", 10, 300);
     private final KstClock kstClock = new KstClock(fixedClock, appProperties);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final PlatformTransactionManager transactionManager = new AbstractPlatformTransactionManager() {
