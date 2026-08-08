@@ -12,7 +12,8 @@ public record AppProperties(
         String snapshotCron,
         String corsAllowedOrigins,
         String nexonBaseUrl,
-        int nexonTimeoutSeconds
+        int nexonTimeoutSeconds,
+        Integer schedulerDuplicateWaitSeconds
 ) {
 
     public AppProperties {
@@ -21,6 +22,11 @@ public record AppProperties(
         corsAllowedOrigins = defaultIfBlank(corsAllowedOrigins, "http://localhost:3000");
         nexonBaseUrl = defaultIfBlank(nexonBaseUrl, "https://open.api.nexon.com");
         nexonTimeoutSeconds = nexonTimeoutSeconds > 0 ? nexonTimeoutSeconds : 10;
+        if (schedulerDuplicateWaitSeconds == null) {
+            schedulerDuplicateWaitSeconds = 300;
+        } else if (schedulerDuplicateWaitSeconds <= 0) {
+            throw new IllegalArgumentException("schedulerDuplicateWaitSeconds must be greater than zero");
+        }
     }
 
     public ZoneId zoneId() {
