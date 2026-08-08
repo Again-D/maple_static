@@ -71,6 +71,7 @@ Backend configuration is loaded from environment variables. The important values
 - `SPRING_DATASOURCE_PASSWORD`
 - `APP_TIMEZONE`
 - `APP_SNAPSHOT_CRON`
+- `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`
 - `APP_CORS_ALLOWED_ORIGINS`
 - `APP_NEXON_BASE_URL`
 - `APP_NEXON_TIMEOUT_SECONDS`
