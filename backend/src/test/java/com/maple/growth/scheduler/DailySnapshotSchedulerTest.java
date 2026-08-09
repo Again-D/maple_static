@@ -1,6 +1,7 @@
 package com.maple.growth.scheduler;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -8,6 +9,7 @@ import com.maple.growth.entity.CharacterEntity;
 import com.maple.growth.config.AppProperties;
 import com.maple.growth.repository.CharacterRepository;
 import com.maple.growth.service.SnapshotSyncService;
+import com.maple.growth.service.CollectionRunService;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,7 +25,9 @@ class DailySnapshotSchedulerTest {
     void schedulerProcessesAutoTrackedCharactersAndContinuesAfterFailure() {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         SnapshotSyncService snapshotSyncService = mock(SnapshotSyncService.class);
-        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, schedulerProperties(1));
+        CollectionRunService collectionRunService = mock(CollectionRunService.class);
+        when(collectionRunService.start(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(UUID.randomUUID());
+        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, collectionRunService, schedulerProperties(1));
 
         CharacterEntity first = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         first.setAutoTrack(true);
@@ -44,7 +48,9 @@ class DailySnapshotSchedulerTest {
     void skipsOverlappingRunAfterConfiguredWaitWithoutRefreshingCharacters() throws Exception {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         SnapshotSyncService snapshotSyncService = mock(SnapshotSyncService.class);
-        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, schedulerProperties(1));
+        CollectionRunService collectionRunService = mock(CollectionRunService.class);
+        when(collectionRunService.start(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(UUID.randomUUID());
+        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, collectionRunService, schedulerProperties(1));
         CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         character.setAutoTrack(true);
         CountDownLatch refreshStarted = new CountDownLatch(1);
@@ -72,7 +78,9 @@ class DailySnapshotSchedulerTest {
     void skipsWhenActiveRunCompletesWithinConfiguredWait() throws Exception {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         SnapshotSyncService snapshotSyncService = mock(SnapshotSyncService.class);
-        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, schedulerProperties(2));
+        CollectionRunService collectionRunService = mock(CollectionRunService.class);
+        when(collectionRunService.start(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(UUID.randomUUID());
+        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, collectionRunService, schedulerProperties(2));
         CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         character.setAutoTrack(true);
         CountDownLatch refreshStarted = new CountDownLatch(1);
@@ -109,19 +117,21 @@ class DailySnapshotSchedulerTest {
     void releasesRunGuardWhenBatchFailsBeforeCharacterProcessing() {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         SnapshotSyncService snapshotSyncService = mock(SnapshotSyncService.class);
-        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, schedulerProperties(1));
+        CollectionRunService collectionRunService = mock(CollectionRunService.class);
+        when(collectionRunService.start(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(UUID.randomUUID());
+        DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, collectionRunService, schedulerProperties(1));
         CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         character.setAutoTrack(true);
         when(characterRepository.findAll())
                 .thenThrow(new RuntimeException("database unavailable"))
                 .thenReturn(List.of(character));
 
-        assertThatThrownBy(scheduler::collectDailySnapshots)
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("database unavailable");
+        assertThatCode(scheduler::collectDailySnapshots).doesNotThrowAnyException();
 
         assertThatCode(scheduler::collectDailySnapshots).doesNotThrowAnyException();
         verify(snapshotSyncService).refresh("Aries92");
+        org.mockito.Mockito.verify(collectionRunService, org.mockito.Mockito.times(1))
+                .recordFailure(org.mockito.ArgumentMatchers.any());
     }
 
     private static AppProperties schedulerProperties(int waitSeconds) {

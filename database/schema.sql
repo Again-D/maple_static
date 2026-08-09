@@ -79,3 +79,49 @@ CREATE INDEX IF NOT EXISTS idx_event_logs_character_date ON growth_event_logs(ch
 -- 이벤트 중복 방지
 CREATE UNIQUE INDEX IF NOT EXISTS uq_growth_event_snapshot_type_key
     ON growth_event_logs(snapshot_id, event_type, event_key);
+
+-- 5. 수집 실행 이력 (collection_runs)
+CREATE TABLE IF NOT EXISTS collection_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    trigger_type VARCHAR(30) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    started_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    target_count INT NOT NULL DEFAULT 0,
+    success_count INT NOT NULL DEFAULT 0,
+    failure_count INT NOT NULL DEFAULT 0,
+    retry_queued_count INT NOT NULL DEFAULT 0,
+    skip_reason VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_collection_run_counts CHECK (
+        target_count >= 0 AND success_count >= 0 AND failure_count >= 0 AND retry_queued_count >= 0
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_collection_runs_started_at ON collection_runs(started_at DESC);
+
+-- 6. 재시도 작업 (collection_retry_jobs)
+CREATE TABLE IF NOT EXISTS collection_retry_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    character_id UUID NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+    source_run_id UUID REFERENCES collection_runs(id) ON DELETE SET NULL,
+    status VARCHAR(30) NOT NULL,
+    attempt_count INT NOT NULL DEFAULT 0,
+    next_attempt_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    claim_token UUID,
+    last_attempted_at TIMESTAMP WITH TIME ZONE,
+    last_error_code VARCHAR(50),
+    last_error_message VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT ck_collection_retry_attempt_count CHECK (attempt_count >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collection_retry_due
+    ON collection_retry_jobs(status, next_attempt_at, id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_collection_retry_active_character
+    ON collection_retry_jobs(character_id)
+    WHERE status IN ('PENDING', 'CLAIMED');

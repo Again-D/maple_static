@@ -9,6 +9,7 @@ public enum ApiErrorCode {
     NEXON_API_AUTH_FAILED(HttpStatus.BAD_GATEWAY),
     NEXON_API_FAILED(HttpStatus.BAD_GATEWAY),
     NEXON_API_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
+    OPERATIONS_ACCESS_DENIED(HttpStatus.FORBIDDEN),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final HttpStatus httpStatus;

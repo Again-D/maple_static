@@ -58,6 +58,7 @@
 | 502 | `NEXON_API_AUTH_FAILED` | false | Nexon OpenAPI 키가 유효하지 않다. |
 | 502 | `NEXON_API_FAILED` | true | Nexon OpenAPI 호출이 실패했다. |
 | 503 | `NEXON_API_UNAVAILABLE` | true | Nexon OpenAPI가 일시적으로 사용할 수 없다. |
+| 403 | `OPERATIONS_ACCESS_DENIED` | false | 운영 상태 API 토큰이 없거나 올바르지 않다. |
 | 500 | `INTERNAL_ERROR` | true | 서비스 내부 오류다. |
 
 ## 5. 공통 데이터 타입
@@ -415,17 +416,61 @@ Nexon OpenAPI에서 최신 데이터를 가져와 당일 대표 스냅샷을 생
 - AC7. `POST /api/v1/characters/{name}/refresh`는 당일 대표 스냅샷을 생성하거나 갱신한다.
 - AC8. 모든 실패 응답은 `error.code`, `error.message`, `error.retryable`을 포함한다.
 
-## 9. MVP 이후로 미루는 API
+## 9. 운영 상태 API
+
+### 9.1. 수집 상태 조회
+
+`GET /api/v1/operations/collections?limit=20`
+
+요청에는 `X-Operations-Token` 헤더가 필요하다. `limit`은 1 이상 100 이하이며 최근 수집 실행을 최신순으로 반환한다.
+
+응답에는 실행 상태와 retry job 개수만 포함한다. Nexon 원본 JSON, stack trace, API key, DB credentials는 반환하지 않는다.
+
+```json
+{
+  "success": true,
+  "data": {
+    "recentRuns": [
+      {
+        "id": "8e9c2d4a-6c8b-4b2a-b3b5-c5f2f6f1d222",
+        "triggerType": "SCHEDULED",
+        "status": "PARTIALLY_FAILED",
+        "startedAt": "2026-08-02T04:00:00+09:00",
+        "completedAt": "2026-08-02T04:02:00+09:00",
+        "targetCount": 3,
+        "successCount": 2,
+        "failureCount": 1,
+        "retryQueuedCount": 1,
+        "skipReason": null
+      }
+    ],
+    "pendingRetryCount": 1,
+    "claimedRetryCount": 0,
+    "succeededRetryCount": 2,
+    "deadLetteredRetryCount": 0
+  },
+  "meta": {
+    "serverTime": "2026-08-02T04:10:00+09:00",
+    "timezone": "Asia/Seoul"
+  }
+}
+```
+
+### 9.2. 운영 상태 API 실패
+
+운영 토큰이 없거나 일치하지 않으면 HTTP 403과 `OPERATIONS_ACCESS_DENIED`를 반환한다.
+
+## 10. MVP 이후로 미루는 API
 
 - 로그인/회원 API
 - 즐겨찾기 API
 - 인기 캐릭터 랭킹 API
 - OpenGraph 이미지 API
 - 장비 상세 Diff API
-- 관리자용 수집 상태 API
+- 운영자 강제 replay API
 - 30일/전체 기간 고급 분석 API
 
-## 10. 관련 문서
+## 11. 관련 문서
 
 - `doc/plans/mvp_requirements.md`
 - `doc/domain/snapshot_policy.md`

@@ -26,5 +26,12 @@ app:
   nexon-base-url: ${APP_NEXON_BASE_URL:https://open.api.nexon.com}
   nexon-timeout-seconds: ${APP_NEXON_TIMEOUT_SECONDS:10}
   scheduler-duplicate-wait-seconds: ${APP_SCHEDULER_DUPLICATE_WAIT_SECONDS:300}
+  operations-api-token: ${APP_OPERATIONS_API_TOKEN:}
+  collection:
+    retry-cron: ${APP_COLLECTION_RETRY_CRON:0 */15 * * * *}
+    retry-batch-size: ${APP_COLLECTION_RETRY_BATCH_SIZE:20}
+    retry-max-attempts: ${APP_COLLECTION_RETRY_MAX_ATTEMPTS:3}
+    retry-initial-backoff-seconds: ${APP_COLLECTION_RETRY_INITIAL_BACKOFF_SECONDS:300}
+    retry-lease-seconds: ${APP_COLLECTION_RETRY_LEASE_SECONDS:900}
 nexon:
   api-key: ${NEXON_API_KEY:test-key}

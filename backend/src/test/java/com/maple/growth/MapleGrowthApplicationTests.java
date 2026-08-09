@@ -13,6 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "nexon.api-key=test-key",
+        "app.operations-api-token=test-operations-token",
         "app.timezone=Asia/Seoul",
         "app.snapshot-cron=0 0 4 * * *",
         "app.cors-allowed-origins=http://localhost:3000"

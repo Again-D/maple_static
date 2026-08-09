@@ -163,7 +163,7 @@ The MVP focuses on one public lookup flow and treats data history as derived fro
 - OpenGraph image generation.
 - Detailed equipment diff drawer and automatic `ITEM_REPLACED` generation.
 - Admin collection dashboard.
-- Durable retry queue, dead-letter handling, and long-term scheduler recovery.
+- Long-term scheduler recovery, operator-triggered replay, and external alerting.
 - Multi-instance scheduler locking unless production launch requires horizontal backend scaling. Overlapping runs within one scheduler process use the bounded wait policy defined in the ops contract.
 
 ### Outside This MVP
