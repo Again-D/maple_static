@@ -144,6 +144,7 @@ public class SnapshotSyncService {
     private SyncResult syncExistingCharacter(CharacterEntity character) {
         NexonCharacterSnapshot snapshot = nexonApiClient.fetchCharacterSnapshot(character.getCharacterName(), kstClock.today());
         character.setLastSyncAttemptedAt(kstClock.now());
+        character.setCharacterImageUrl(snapshot.imageUrl());
         SnapshotPersistResult persistResult = saveSnapshot(character, snapshot);
         DailySnapshotEntity savedSnapshot = persistResult.snapshot();
         int eventCount = recomputeEvents(savedSnapshot);

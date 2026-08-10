@@ -115,7 +115,7 @@ class SnapshotSyncServiceTest {
         GrowthEventService eventService = mock(GrowthEventService.class);
         SnapshotSyncService service = new SnapshotSyncService(characterRepository, snapshotRepository, eventRepository, client, eventService, kstClock, objectMapper, transactionManager);
 
-        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
+        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", null);
         character.setId(java.util.UUID.randomUUID());
         DailySnapshotEntity snapshot = snapshot(character, 278, 1000L, new BigDecimal("42.1234"), 7420500L, 8500, 42, 135);
         when(characterRepository.findByCharacterName("Aries92")).thenReturn(Optional.of(character));
@@ -142,7 +142,7 @@ class SnapshotSyncServiceTest {
         character.setId(java.util.UUID.randomUUID());
         DailySnapshotEntity existing = snapshot(character, 277, 1000L, new BigDecimal("35.1234"), 7300000L, 8380, 132, 130);
         existing.setId(10L);
-        NexonCharacterSnapshot apiSnapshot = snapshot("ocid-1", "Aries92");
+        NexonCharacterSnapshot apiSnapshot = snapshot("ocid-1", "Aries92", "https://example.com/updated-image.png");
         when(characterRepository.findByCharacterName("Aries92")).thenReturn(Optional.of(character));
         when(snapshotRepository.findByCharacterAndSnapshotDate(character, kstClock.today())).thenReturn(Optional.of(existing));
         when(snapshotRepository.save(any(DailySnapshotEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -154,6 +154,7 @@ class SnapshotSyncServiceTest {
 
         assertThat(response.snapshotUpdated()).isTrue();
         assertThat(response.snapshotCreated()).isFalse();
+        assertThat(response.profile().imageUrl()).isEqualTo("https://example.com/updated-image.png");
         verify(snapshotRepository).save(existing);
     }
 
@@ -209,6 +210,10 @@ class SnapshotSyncServiceTest {
     }
 
     private NexonCharacterSnapshot snapshot(String ocid, String name) {
+        return snapshot(ocid, name, "img");
+    }
+
+    private NexonCharacterSnapshot snapshot(String ocid, String name, String imageUrl) {
         ObjectNode statJson = objectMapper.createObjectNode();
         statJson.put("character_level", "278");
         statJson.put("character_exp", "123456789");
@@ -220,7 +225,7 @@ class SnapshotSyncServiceTest {
                 "루나",
                 "나이트로드",
                 "male",
-                "img",
+                imageUrl,
                 278,
                 123456789L,
                 new BigDecimal("42.1234"),
