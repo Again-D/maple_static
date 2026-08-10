@@ -39,15 +39,15 @@ class NexonApiClientTest {
                   "character_name": "Aries92",
                   "world_name": "루나",
                   "character_class": "나이트로드",
+                  "character_level": "278",
+                  "character_exp": "123456789",
+                  "character_exp_rate": "42.1234",
                   "character_gender": "male",
                   "character_image": "https://example.com/image.png"
                 }
                 """).addHeader("Content-Type", "application/json"));
         server.enqueue(new MockResponse().setBody("""
                 {
-                  "character_level": "278",
-                  "character_exp": "123456789",
-                  "character_exp_rate": "42.1234",
                   "final_stat": [
                     {"stat_name": "전투력", "stat_value": "7420500"}
                   ]
@@ -75,6 +75,9 @@ class NexonApiClientTest {
 
         assertThat(snapshot.ocid()).isEqualTo("ocid-123");
         assertThat(snapshot.name()).isEqualTo("Aries92");
+        assertThat(snapshot.level()).isEqualTo(278);
+        assertThat(snapshot.exp()).isEqualTo(123456789L);
+        assertThat(snapshot.expRate()).hasToString("42.1234");
         assertThat(snapshot.combatPower()).isEqualTo(7420500L);
         assertThat(snapshot.unionLevel()).isEqualTo(8500);
         assertThat(snapshot.unionArtifactLevel()).isEqualTo(42);
@@ -93,15 +96,15 @@ class NexonApiClientTest {
                   "character_name": "Aries92",
                   "world_name": "루나",
                   "character_class": "나이트로드",
+                  "character_level": "278",
+                  "character_exp": "123456789",
+                  "character_exp_rate": "42.1234",
                   "character_gender": "male",
                   "character_image": "https://example.com/image.png"
                 }
                 """).addHeader("Content-Type", "application/json"));
         server.enqueue(new MockResponse().setBody("""
                 {
-                  "character_level": "278",
-                  "character_exp": "123456789",
-                  "character_exp_rate": "42.1234",
                   "final_stat": [
                     {"stat_name": "전투력", "stat_value": "7420500"}
                   ]
