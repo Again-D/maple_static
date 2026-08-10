@@ -115,7 +115,7 @@ class SnapshotSyncServiceTest {
         GrowthEventService eventService = mock(GrowthEventService.class);
         SnapshotSyncService service = new SnapshotSyncService(characterRepository, snapshotRepository, eventRepository, client, eventService, kstClock, objectMapper, transactionManager);
 
-        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", null);
+        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         character.setId(java.util.UUID.randomUUID());
         DailySnapshotEntity snapshot = snapshot(character, 278, 1000L, new BigDecimal("42.1234"), 7420500L, 8500, 42, 135);
         when(characterRepository.findByCharacterName("Aries92")).thenReturn(Optional.of(character));
@@ -138,7 +138,7 @@ class SnapshotSyncServiceTest {
         GrowthEventService eventService = mock(GrowthEventService.class);
         when(eventService.recomputeEvents(any(DailySnapshotEntity.class), isNull())).thenReturn(0);
 
-        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
+        CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", null);
         character.setId(java.util.UUID.randomUUID());
         DailySnapshotEntity existing = snapshot(character, 277, 1000L, new BigDecimal("35.1234"), 7300000L, 8380, 132, 130);
         existing.setId(10L);
