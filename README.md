@@ -72,12 +72,20 @@ Backend configuration is loaded from environment variables. The important values
 - `APP_TIMEZONE`
 - `APP_SNAPSHOT_CRON`
 - `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`
+- `APP_OPERATIONS_API_TOKEN`
+- `APP_COLLECTION_RETRY_CRON`
+- `APP_COLLECTION_RETRY_BATCH_SIZE`
+- `APP_COLLECTION_RETRY_MAX_ATTEMPTS`
+- `APP_COLLECTION_RETRY_INITIAL_BACKOFF_SECONDS`
+- `APP_COLLECTION_RETRY_LEASE_SECONDS`
 - `APP_CORS_ALLOWED_ORIGINS`
 - `APP_NEXON_BASE_URL`
 - `APP_NEXON_TIMEOUT_SECONDS`
 
 For local development against PostgreSQL, the example file includes `SPRING_DATASOURCE_DRIVER=org.postgresql.Driver`.
 The backend test profile can still start with the H2 defaults in `backend/src/main/resources/application.yml`.
+
+The token-protected operations endpoint is `GET /api/v1/operations/collections` with the `X-Operations-Token` header. It exposes sanitized collection summaries and retry counts for operators; never expose the token through a `NEXT_PUBLIC_` variable.
 
 To confirm that your local Nexon key is real:
 

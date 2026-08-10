@@ -40,6 +40,12 @@ Spring Boot 백엔드는 아래 환경 변수를 기준으로 설정한다.
 | `APP_TIMEZONE` | yes | `Asia/Seoul` | 서비스 날짜 계산 기준 |
 | `APP_SNAPSHOT_CRON` | yes | `0 0 4 * * *` | 자동 스냅샷 수집 cron |
 | `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS` | no | `300` | 중복 스케줄 실행 대기 상한(초) |
+| `APP_OPERATIONS_API_TOKEN` | yes | `replace-with-an-operations-token` | 운영 상태 API 접근 토큰 |
+| `APP_COLLECTION_RETRY_CRON` | no | `0 */15 * * * *` | 재시도 작업 polling cron |
+| `APP_COLLECTION_RETRY_BATCH_SIZE` | no | `20` | 한 번에 처리할 최대 재시도 작업 수 |
+| `APP_COLLECTION_RETRY_MAX_ATTEMPTS` | no | `3` | 재시도 작업의 최대 시도 횟수 |
+| `APP_COLLECTION_RETRY_INITIAL_BACKOFF_SECONDS` | no | `300` | 첫 재시도까지의 대기 시간(초) |
+| `APP_COLLECTION_RETRY_LEASE_SECONDS` | no | `900` | 중단된 claim을 회수하기까지의 시간(초) |
 | `APP_CORS_ALLOWED_ORIGINS` | yes | `http://localhost:3000` | 프론트엔드 허용 origin |
 | `APP_NEXON_BASE_URL` | no | `https://open.api.nexon.com` | Nexon API base URL |
 | `APP_NEXON_TIMEOUT_SECONDS` | no | `10` | Nexon API 호출 timeout |
@@ -51,6 +57,9 @@ Spring Boot 백엔드는 아래 환경 변수를 기준으로 설정한다.
 - O14a. `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`의 기본값은 300초(5분)이다.
 - O14b. 이미 자동 수집이 진행 중이면 후속 실행은 설정된 대기 상한까지 기다린 뒤 중복 수집을 건너뛴다.
 - O14c. `APP_SCHEDULER_DUPLICATE_WAIT_SECONDS`가 0 이하이면 애플리케이션 시작을 실패시키고 스케줄러를 활성화하지 않는다.
+- O14d. 운영 상태 API는 `X-Operations-Token`이 `APP_OPERATIONS_API_TOKEN`과 일치할 때만 응답한다.
+- O14e. 운영 토큰은 백엔드 secret manager에만 저장하고 `NEXT_PUBLIC_` 환경변수나 로그에 넣지 않는다.
+- O14f. retry batch size, max attempts, initial backoff, lease seconds는 양수로 검증한다.
 
 ## 5. 프론트엔드 환경 변수
 
@@ -111,7 +120,9 @@ MVP의 기본 배포 형태는 아래 구조를 전제로 한다.
 - O27. 기본 실행 시각은 한국 시간 기준 매일 04:00이다.
 - O28. 일부 캐릭터 수집 실패가 전체 배치를 중단하지 않아야 한다.
 - O29. 실패한 캐릭터는 기존 데이터를 유지하고 성공 시각처럼 `last_fetched_at`을 갱신하지 않는다.
-- O30. MVP에서는 실패 재시도 큐를 두지 않는다.
+- O30. 재시도 가능한 자동 수집 실패는 PostgreSQL 기반 retry job으로 저장하고 설정된 backoff와 최대 시도 횟수에 따라 재처리한다.
+- O30a. 최대 시도 횟수를 넘긴 작업은 dead-letter 상태로 남기며 자동으로 다시 호출하지 않는다.
+- O30b. 수동 새로고침 실패는 background retry job을 만들지 않는다.
 - O31. 운영 로그에는 실패한 캐릭터 식별자, 실패 원인, 발생 시각을 남긴다.
 
 ## 9. 로그와 관측성
@@ -124,12 +135,15 @@ MVP에서 최소로 남겨야 하는 로그는 아래와 같다.
 | Nexon API 실패 | API 종류, HTTP status, retryable 여부 |
 | 수동 새로고침 성공/실패 | 캐릭터 이름, 요청 시각, 결과 |
 | 자동 수집 시작/종료 | 대상 수, 성공 수, 실패 수 |
+| 수집 실행 이력 | run id, trigger, 상태, 대상/성공/실패 수 |
+| retry job 상태 변경 | job id, 상태, 시도 횟수, error code |
 | 중복 스케줄 실행 건너뜀 | 대기 시간, 제한 초과 여부, 건너뛴 사유 |
 | 이벤트 생성 | 캐릭터 이름, snapshot id, event type |
 
 - O32. 로그에 Nexon API Key, DB 비밀번호, 전체 원본 응답을 남기지 않는다.
 - O33. 원본 JSON은 필요한 경우 DB의 JSONB 필드에 저장하되 로그에는 요약만 남긴다.
 - O34. 사용자가 보는 오류 메시지와 개발자 로그 메시지는 구분한다.
+- O35. `GET /api/v1/operations/collections`는 원본 Nexon 응답, stack trace, 비밀값을 반환하지 않는다.
 
 ## 10. 배포 전 체크리스트
 
@@ -144,12 +158,14 @@ MVP에서 최소로 남겨야 하는 로그는 아래와 같다.
 - AC9. Nexon API 실패 시 기존 데이터가 있는 대시보드는 유지된다.
 - AC10. 자동 수집 로그에서 대상 수, 성공 수, 실패 수를 확인할 수 있다.
 - AC11. 중복 실행 시 대기 상한, 제한 초과 후 건너뛰기, 잘못된 대기값에 대한 시작 실패를 확인할 수 있다.
+- AC12. retryable 자동 수집 실패가 실행 이력과 pending retry job에 함께 기록된다.
+- AC13. retry job이 성공하면 succeeded 상태가 되고, 최대 시도 횟수를 넘기면 dead-letter 상태가 된다.
+- AC14. 올바른 운영 토큰 없이 운영 상태 API를 호출하면 수집 데이터가 반환되지 않는다.
 
 ## 11. MVP 이후 재검토 항목
 
 - 다중 백엔드 인스턴스에서 스케줄러 중복 실행 방지
-- 실패 재시도 큐와 dead-letter 처리
-- 관리자용 수집 상태 대시보드
+- 관리자용 수집 상태 대시보드와 operator-triggered replay
 - 장기 스냅샷 보관/압축/삭제 정책
 - preview 환경과 테스트 DB 자동 생성
 - 외부 관측성 도구 연동
