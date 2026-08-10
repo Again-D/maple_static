@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -118,7 +117,8 @@ class DailySnapshotSchedulerTest {
         CharacterRepository characterRepository = mock(CharacterRepository.class);
         SnapshotSyncService snapshotSyncService = mock(SnapshotSyncService.class);
         CollectionRunService collectionRunService = mock(CollectionRunService.class);
-        when(collectionRunService.start(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(UUID.randomUUID());
+        UUID runId = UUID.randomUUID();
+        when(collectionRunService.start(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(runId);
         DailySnapshotScheduler scheduler = new DailySnapshotScheduler(characterRepository, snapshotSyncService, collectionRunService, schedulerProperties(1));
         CharacterEntity character = new CharacterEntity("ocid-1", "Aries92", "루나", "나이트로드", "male", "img");
         character.setAutoTrack(true);
@@ -127,11 +127,11 @@ class DailySnapshotSchedulerTest {
                 .thenReturn(List.of(character));
 
         assertThatCode(scheduler::collectDailySnapshots).doesNotThrowAnyException();
-
         assertThatCode(scheduler::collectDailySnapshots).doesNotThrowAnyException();
+
         verify(snapshotSyncService).refresh("Aries92");
         org.mockito.Mockito.verify(collectionRunService, org.mockito.Mockito.times(1))
-                .recordFailure(org.mockito.ArgumentMatchers.any());
+                .recordFailure(runId);
     }
 
     private static AppProperties schedulerProperties(int waitSeconds) {
