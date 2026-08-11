@@ -20,7 +20,10 @@ export function isImageRequestRateLimited(forwardedFor: string | null) {
   const entry = rateLimitEntries.get(key);
 
   if (!entry && rateLimitEntries.size >= MAX_TRACKED_CLIENTS) {
-    return true;
+    const oldestKey = rateLimitEntries.keys().next().value;
+    if (oldestKey) {
+      rateLimitEntries.delete(oldestKey);
+    }
   }
   if (!entry || entry.resetAt <= now) {
     rateLimitEntries.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });

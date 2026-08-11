@@ -24,4 +24,12 @@ describe("character image proxy", () => {
     assert.equal(exceedsImageSizeLimit(1_000_000), false);
     assert.equal(exceedsImageSizeLimit(1_000_001), true);
   });
+
+  it("keeps accepting new clients when the limiter reaches its tracking cap", () => {
+    for (let index = 0; index < 10_000; index += 1) {
+      isImageRequestRateLimited(`test-client-${index}`);
+    }
+
+    assert.equal(isImageRequestRateLimited("test-client-after-cap"), false);
+  });
 });
