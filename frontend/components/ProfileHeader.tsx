@@ -1,6 +1,8 @@
 import { formatCompactNumber, formatPercent } from "../lib/format";
 import type { CharacterProfile, SnapshotSummary } from "../lib/api/types";
 
+const CHARACTER_IMAGE_PROXY_VERSION = "1";
+
 type ProfileHeaderProps = {
   profile: CharacterProfile;
   latestSnapshot: SnapshotSummary | null;
@@ -11,7 +13,7 @@ export function ProfileHeader({ profile, latestSnapshot }: ProfileHeaderProps) {
     <section className="panel panel--wide">
       <div className="profile-header">
         <div className="profile-header__identity">
-          {profile.imageUrl ? <img className="profile-header__image" src={profile.imageUrl} alt="" /> : <div className="profile-header__placeholder" aria-hidden="true" />}
+          {profile.imageUrl ? <img className="profile-header__image" src={`/api/character-image?url=${encodeURIComponent(profile.imageUrl)}&v=${CHARACTER_IMAGE_PROXY_VERSION}`} alt={`${profile.name} 캐릭터 이미지`} /> : <div className="profile-header__placeholder" aria-hidden="true" />}
           <div>
             <p className="eyebrow">Profile</p>
             <h2>{profile.name}</h2>
