@@ -12,7 +12,7 @@ const sampleData = {
     worldName: "루나",
     jobName: "나이트로드",
     gender: "male",
-    imageUrl: null,
+    imageUrl: "/character-image.png",
     isAutoTrack: true
   },
   latestSnapshot: {
@@ -139,6 +139,7 @@ describe("dashboard page", () => {
     assert.match(html, /캐릭터의 현재 상태와 최근 7일 성장 흐름/);
     assert.match(html, /전투력 변화/);
     assert.match(html, /새로고침이 완료되었습니다/);
+    assert.match(html, /\/api\/character-image\?url=/);
   });
 
   it("renders refreshing state without hiding cached content", () => {
