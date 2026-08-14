@@ -279,11 +279,12 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
 
 ### 6.3. 성장 이력 조회
 
-`GET /api/v1/characters/{name}/growth-history?range=7d`
+`GET /api/v1/characters/{name}/growth-history?range=7d&metric=combatPower`
 
 차트에 사용할 스냅샷 시계열을 조회한다.
-MVP에서 허용하는 `range` 값은 `7d`다.
-`30d`, `all`은 API 확장을 고려하되 MVP 필수는 아니다.
+허용하는 `range` 값은 `7d`, `30d`, `all`이다.
+허용하는 `metric` 값은 `combatPower`, `level`, `expRate`, `unionLevel`, `hexaMatrixLevelSum`이다.
+`range`, `metric`을 생략하면 기본값은 `7d` + `combatPower`다.
 
 성공 응답:
 
@@ -292,6 +293,7 @@ MVP에서 허용하는 `range` 값은 `7d`다.
   "success": true,
   "data": {
     "range": "7d",
+    "metric": "combatPower",
     "hasEnoughSnapshots": true,
     "points": [
       {
@@ -358,6 +360,18 @@ MVP에서 허용하는 `range` 값은 `7d`다.
 
 ### 6.5. 수동 새로고침
 
+`ITEM_REPLACED` 이벤트의 `detail`은 다음 형태를 사용한다. 여러 슬롯 변경도 이벤트 한 건의 `changes` 배열로 묶으며, preset/옵션/스타포스 비교 결과는 포함하지 않는다.
+
+```json
+{
+  "changeCount": 2,
+  "changes": [
+    { "slot": "무기", "previousItemName": "아케인 스태프", "currentItemName": "에테르넬 스태프" },
+    { "slot": "신발", "previousItemName": "아케인 슈즈", "currentItemName": "에테르넬 슈즈" }
+  ]
+}
+```
+
 `POST /api/v1/characters/{name}/refresh`
 
 Nexon OpenAPI에서 최신 데이터를 가져와 당일 대표 스냅샷을 생성하거나 갱신한다.
@@ -411,7 +425,7 @@ Nexon OpenAPI에서 최신 데이터를 가져와 당일 대표 스냅샷을 생
 - AC2. DB에 없는 캐릭터를 처음 조회하면 성공 시 캐릭터와 당일 대표 스냅샷이 생성된다.
 - AC3. `GET /api/v1/characters/{name}/dashboard`는 MVP 대시보드 첫 화면에 필요한 데이터를 한 번에 반환한다.
 - AC4. 스냅샷이 2개 미만이어도 대시보드 API는 200을 반환하고 데이터 부족 상태를 표현한다.
-- AC5. `GET /api/v1/characters/{name}/growth-history?range=7d`는 최근 7일 차트 포인트를 반환한다.
+- AC5. `GET /api/v1/characters/{name}/growth-history`는 `range in {7d,30d,all}`와 `metric in {combatPower,level,expRate,unionLevel,hexaMatrixLevelSum}`를 지원하고, 응답에 `range`, `metric`, `hasEnoughSnapshots`, `points`를 포함한다.
 - AC6. `GET /api/v1/characters/{name}/events`는 이벤트를 최신순으로 반환한다.
 - AC7. `POST /api/v1/characters/{name}/refresh`는 당일 대표 스냅샷을 생성하거나 갱신한다.
 - AC8. 모든 실패 응답은 `error.code`, `error.message`, `error.retryable`을 포함한다.
@@ -466,9 +480,9 @@ Nexon OpenAPI에서 최신 데이터를 가져와 당일 대표 스냅샷을 생
 - 즐겨찾기 API
 - 인기 캐릭터 랭킹 API
 - OpenGraph 이미지 API
-- 장비 상세 Diff API
+- 장비 옵션/잠재능력/스타포스 상세 Diff API
 - 운영자 강제 replay API
-- 30일/전체 기간 고급 분석 API
+- preset-aware 장비 비교 API
 
 ## 11. 관련 문서
 

@@ -11,6 +11,8 @@ import com.maple.growth.service.KstClock;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import java.util.Map;
+import java.util.Set;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +26,20 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/characters")
 public class CharacterController {
+
+    private static final Map<String, Integer> SUPPORTED_RANGES = Map.of(
+            "7d", 7,
+            "30d", 30,
+            "all", Integer.MAX_VALUE
+    );
+
+    private static final Set<String> SUPPORTED_METRICS = Set.of(
+            "combatPower",
+            "level",
+            "expRate",
+            "unionLevel",
+            "hexaMatrixLevelSum"
+    );
 
     private final CharacterLookupService characterLookupService;
     private final KstClock kstClock;
@@ -41,13 +57,18 @@ public class CharacterController {
     @GetMapping("/{name}/growth-history")
     public ApiResponse<GrowthHistoryDto> getGrowthHistory(
             @PathVariable String name,
-            @RequestParam(defaultValue = "7d") String range
+            @RequestParam(defaultValue = "7d") String range,
+            @RequestParam(defaultValue = "combatPower") String metric
     ) {
-        if (!"7d".equals(range)) {
-            throw new com.maple.growth.service.ValidationException("현재는 7d 범위만 지원합니다.");
+        Integer rangeDays = SUPPORTED_RANGES.get(range);
+        if (rangeDays == null) {
+            throw new com.maple.growth.service.ValidationException("지원하지 않는 range 값입니다. (지원: 7d, 30d, all)");
+        }
+        if (!SUPPORTED_METRICS.contains(metric)) {
+            throw new com.maple.growth.service.ValidationException("지원하지 않는 metric 값입니다. (지원: combatPower, level, expRate, unionLevel, hexaMatrixLevelSum)");
         }
         var character = characterLookupService.requireExisting(name);
-        return ApiResponse.success(characterLookupService.growthHistory(character, 7), kstClock.now(), kstClock.zoneId().getId());
+        return ApiResponse.success(characterLookupService.growthHistory(character, range, metric, rangeDays), kstClock.now(), kstClock.zoneId().getId());
     }
 
     @GetMapping("/{name}/events")

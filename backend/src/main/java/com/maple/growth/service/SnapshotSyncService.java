@@ -99,11 +99,16 @@ public class SnapshotSyncService {
     }
 
     @Transactional
-    public GrowthHistoryDto growthHistory(CharacterEntity character, int rangeDays) {
+    public GrowthHistoryDto growthHistory(CharacterEntity character, String range, String metric, int rangeDays) {
         LocalDate endDate = kstClock.today();
-        LocalDate startDate = endDate.minusDays(rangeDays - 1L);
+        LocalDate startDate = "all".equals(range)
+                ? LocalDate.of(1970, 1, 1)
+                : endDate.minusDays(rangeDays - 1L);
         var snapshots = dailySnapshotRepository.findByCharacterAndSnapshotDateBetweenOrderBySnapshotDateAsc(character, startDate, endDate);
-        return new GrowthHistoryDto(rangeDays, snapshots.stream().map(SnapshotSyncService::toChartPoint).toList());
+        var points = snapshots.stream().map(SnapshotSyncService::toChartPoint).toList();
+        long comparablePointCount = points.stream().filter(point -> metricValue(point, metric) != null).count();
+        boolean hasEnoughSnapshots = comparablePointCount >= 2;
+        return new GrowthHistoryDto(range, metric, hasEnoughSnapshots, points);
     }
 
     @Transactional
@@ -168,11 +173,24 @@ public class SnapshotSyncService {
         entity.setUnionArtifactLevel(snapshot.unionArtifactLevel());
         entity.setHexaMatrixLevelSum(snapshot.hexaMatrixLevelSum());
         entity.setRawStatJson(snapshot.rawStatJson());
-        entity.setRawEquipmentJson(snapshot.rawEquipmentJson());
+        entity.setRawEquipmentJson(resolveRawEquipmentJson(existing.orElse(null), snapshot.rawEquipmentJson()));
         entity.setRawHexaJson(snapshot.rawHexaJson());
         entity.setCapturedAt(kstClock.now());
         DailySnapshotEntity saved = dailySnapshotRepository.save(entity);
         return new SnapshotPersistResult(saved, created, !created);
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode resolveRawEquipmentJson(DailySnapshotEntity existingSnapshot, com.fasterxml.jackson.databind.JsonNode fetchedRawEquipmentJson) {
+        if (GrowthEventService.hasComparableActiveEquipment(fetchedRawEquipmentJson)) {
+            return fetchedRawEquipmentJson;
+        }
+        if (existingSnapshot == null) {
+            return fetchedRawEquipmentJson;
+        }
+        if (GrowthEventService.hasComparableActiveEquipment(existingSnapshot.getRawEquipmentJson())) {
+            return existingSnapshot.getRawEquipmentJson();
+        }
+        return fetchedRawEquipmentJson;
     }
 
     private int recomputeEvents(DailySnapshotEntity snapshot) {
@@ -205,7 +223,9 @@ public class SnapshotSyncService {
                 kstClock.today().minusDays(6),
                 kstClock.today()
         );
-        var chart = new GrowthHistoryDto(7, chartSnapshots.stream().map(SnapshotSyncService::toChartPoint).toList());
+        var chartPoints = chartSnapshots.stream().map(SnapshotSyncService::toChartPoint).toList();
+        boolean hasEnoughSnapshots = chartPoints.stream().filter(point -> point.combatPower() != null).count() >= 2;
+        var chart = new GrowthHistoryDto("7d", "combatPower", hasEnoughSnapshots, chartPoints);
         var timeline = events(character, 20);
         return new DashboardResponseDto(toProfile(character), toSnapshot(latestSnapshot), toSyncState(character, latestSnapshot != null), summary, chart, timeline);
     }
@@ -325,6 +345,17 @@ public class SnapshotSyncService {
                 snapshot.getUnionLevel(),
                 snapshot.getHexaMatrixLevelSum()
         );
+    }
+
+    private static Object metricValue(ChartPointDto point, String metric) {
+        return switch (metric) {
+            case "combatPower" -> point.combatPower();
+            case "level" -> point.level();
+            case "expRate" -> point.expRate();
+            case "unionLevel" -> point.unionLevel();
+            case "hexaMatrixLevelSum" -> point.hexaMatrixLevelSum();
+            default -> null;
+        };
     }
 
     private GrowthEventDto toEventDto(GrowthEventLogEntity event) {
