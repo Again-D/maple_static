@@ -2,12 +2,18 @@ package com.maple.growth.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.maple.growth.domain.GrowthEventType;
@@ -22,8 +28,76 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class GrowthEventService {
 
+    private static final Comparator<ActiveEquipmentSlotKey> ACTIVE_EQUIPMENT_SLOT_KEY_COMPARATOR = Comparator
+            .comparing(ActiveEquipmentSlotKey::part)
+            .thenComparing(ActiveEquipmentSlotKey::slot);
+    private static final Comparator<ItemReplacementChange> ITEM_REPLACEMENT_CHANGE_COMPARATOR = Comparator
+            .comparing(ItemReplacementChange::part)
+            .thenComparing(ItemReplacementChange::slot)
+            .thenComparing(ItemReplacementChange::previousItemName)
+            .thenComparing(ItemReplacementChange::currentItemName);
+
     private final GrowthEventLogRepository growthEventLogRepository;
     private final ObjectMapper objectMapper;
+
+    static Map<ActiveEquipmentSlotKey, ActiveEquipmentRecord> normalizeActiveEquipment(JsonNode rawEquipmentJson) {
+        if (rawEquipmentJson == null || !rawEquipmentJson.isObject()) {
+            return Map.of();
+        }
+
+        JsonNode itemEquipment = rawEquipmentJson.get("item_equipment");
+        if (itemEquipment == null || !itemEquipment.isArray()) {
+            return Map.of();
+        }
+
+        Map<ActiveEquipmentSlotKey, ActiveEquipmentRecord> normalized = new java.util.TreeMap<>(ACTIVE_EQUIPMENT_SLOT_KEY_COMPARATOR);
+        for (JsonNode row : itemEquipment) {
+            if (row == null || !row.isObject()) {
+                continue;
+            }
+            String part = normalizeRequiredText(row.get("item_equipment_part"));
+            String slot = normalizeRequiredText(row.get("item_equipment_slot"));
+            String itemName = normalizeRequiredText(row.get("item_name"));
+            if (part == null || slot == null || itemName == null) {
+                continue;
+            }
+            ActiveEquipmentSlotKey key = new ActiveEquipmentSlotKey(part, slot);
+            normalized.put(key, new ActiveEquipmentRecord(part, slot, itemName));
+        }
+
+        if (normalized.isEmpty()) {
+            return Map.of();
+        }
+        return new LinkedHashMap<>(normalized);
+    }
+
+    static List<ComparableActiveEquipmentPair> buildComparableActiveEquipmentPairs(JsonNode previousRawEquipmentJson, JsonNode currentRawEquipmentJson) {
+        Map<ActiveEquipmentSlotKey, ActiveEquipmentRecord> previous = normalizeActiveEquipment(previousRawEquipmentJson);
+        Map<ActiveEquipmentSlotKey, ActiveEquipmentRecord> current = normalizeActiveEquipment(currentRawEquipmentJson);
+        if (previous.isEmpty() || current.isEmpty()) {
+            return List.of();
+        }
+
+        List<ComparableActiveEquipmentPair> pairs = new ArrayList<>();
+        for (Map.Entry<ActiveEquipmentSlotKey, ActiveEquipmentRecord> entry : previous.entrySet()) {
+            ActiveEquipmentRecord previousRecord = entry.getValue();
+            ActiveEquipmentRecord currentRecord = current.get(entry.getKey());
+            if (currentRecord == null) {
+                continue;
+            }
+            pairs.add(new ComparableActiveEquipmentPair(
+                    entry.getKey().part(),
+                    entry.getKey().slot(),
+                    previousRecord.itemName(),
+                    currentRecord.itemName()
+            ));
+        }
+        return pairs;
+    }
+
+    static boolean hasComparableActiveEquipment(JsonNode rawEquipmentJson) {
+        return !normalizeActiveEquipment(rawEquipmentJson).isEmpty();
+    }
 
     @Transactional
     public int recomputeEvents(DailySnapshotEntity snapshot, DailySnapshotEntity previousSnapshot) {
@@ -57,8 +131,49 @@ public class GrowthEventService {
         addCombatPowerEvent(result, current, previous);
         addHexaEvent(result, current, previous);
         addUnionEvent(result, current, previous);
+        addGroupedItemReplacedEvent(result, current, previous);
 
         return result;
+    }
+
+    private void addGroupedItemReplacedEvent(List<GrowthEventLogEntity> result, DailySnapshotEntity current, DailySnapshotEntity previous) {
+        List<ComparableActiveEquipmentPair> comparablePairs = buildComparableActiveEquipmentPairs(
+                previous.getRawEquipmentJson(),
+                current.getRawEquipmentJson()
+        );
+        if (comparablePairs.isEmpty()) {
+            return;
+        }
+
+        List<ItemReplacementChange> changes = comparablePairs.stream()
+                .filter(pair -> !pair.previousItemName().equals(pair.currentItemName()))
+                .map(pair -> new ItemReplacementChange(pair.part(), pair.slot(), pair.previousItemName(), pair.currentItemName()))
+                .sorted(ITEM_REPLACEMENT_CHANGE_COMPARATOR)
+                .toList();
+        if (changes.isEmpty()) {
+            return;
+        }
+
+        String eventKey = buildItemReplacementEventKey(changes);
+        ObjectNode detailJson = objectMapper.createObjectNode();
+        detailJson.put("changeCount", changes.size());
+        detailJson.set("changes", objectMapper.valueToTree(changes.stream()
+                .map(change -> values(
+                        "slot", change.slot(),
+                        "previousItemName", change.previousItemName(),
+                        "currentItemName", change.currentItemName()
+                ))
+                .toList()));
+        result.add(buildEvent(
+                current,
+                previous,
+                GrowthEventType.ITEM_REPLACED,
+                "장비 교체 %d건".formatted(changes.size()),
+                eventKey,
+                2,
+                detailJson,
+                "대표 스냅샷 기준 장착 장비 변경 %d건".formatted(changes.size())
+        ));
     }
 
     private void addCombatPowerEvent(List<GrowthEventLogEntity> result, DailySnapshotEntity current, DailySnapshotEntity previous) {
@@ -189,5 +304,51 @@ public class GrowthEventService {
 
     private String formatNumber(long value) {
         return String.format("%,d", value);
+    }
+
+    private String buildItemReplacementEventKey(List<ItemReplacementChange> changes) {
+        String canonical = changes.stream()
+                .map(change -> "%s\u001f%s\u001f%s\u001f%s".formatted(
+                        change.part(),
+                        change.slot(),
+                        change.previousItemName(),
+                        change.currentItemName()
+                ))
+                .reduce((left, right) -> left + "\u001e" + right)
+                .orElse("");
+        return "item_replaced:" + sha256Hex(canonical);
+    }
+
+    private String sha256Hex(String raw) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hashed);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 algorithm is unavailable", exception);
+        }
+    }
+
+    private static String normalizeRequiredText(JsonNode node) {
+        if (node == null || !node.isTextual()) {
+            return null;
+        }
+        String value = node.asText().trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        return value;
+    }
+
+    record ActiveEquipmentSlotKey(String part, String slot) {
+    }
+
+    record ActiveEquipmentRecord(String part, String slot, String itemName) {
+    }
+
+    record ComparableActiveEquipmentPair(String part, String slot, String previousItemName, String currentItemName) {
+    }
+
+    record ItemReplacementChange(String part, String slot, String previousItemName, String currentItemName) {
     }
 }

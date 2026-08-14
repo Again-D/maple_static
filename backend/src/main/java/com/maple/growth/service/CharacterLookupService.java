@@ -31,12 +31,12 @@ public class CharacterLookupService {
         return snapshotSyncService.requireExistingCharacter(name);
     }
 
-    public GrowthHistoryDto growthHistory(CharacterEntity character, int rangeDays) {
-        return snapshotSyncService.growthHistory(character, rangeDays);
+    public GrowthHistoryDto growthHistory(CharacterEntity character, String range, String metric, int rangeDays) {
+        return snapshotSyncService.growthHistory(character, range, metric, rangeDays);
     }
 
     public EventsResponseDto events(CharacterEntity character, int limit) {
         var timeline = snapshotSyncService.events(character, limit);
-        return new EventsResponseDto(timeline.items(), timeline.hasMore(), timeline.nextCursor());
+        return new EventsResponseDto(timeline.events(), timeline.hasMore(), timeline.nextCursor());
     }
 }

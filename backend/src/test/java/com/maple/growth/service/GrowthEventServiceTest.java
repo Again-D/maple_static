@@ -3,8 +3,11 @@ package com.maple.growth.service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.maple.growth.entity.CharacterEntity;
 import com.maple.growth.entity.DailySnapshotEntity;
 import com.maple.growth.entity.GrowthEventLogEntity;
@@ -15,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -213,7 +217,7 @@ class GrowthEventServiceTest {
     }
 
     @Test
-    void itemReplacedIsNotGenerated() {
+    void itemReplacedGeneratesSingleGroupedEventForMultipleSlotChanges() {
         GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
         ObjectMapper objectMapper = new ObjectMapper();
         GrowthEventService service = new GrowthEventService(repository, objectMapper);
@@ -222,11 +226,253 @@ class GrowthEventServiceTest {
         DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
         DailySnapshotEntity current = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
 
-        current.setRawEquipmentJson(objectMapper.createObjectNode().put("weapon", "new"));
+        previous.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "무기", "무기", "아케인 스태프"),
+                equipmentRow(objectMapper, "장갑", "장갑", "아케인 장갑"),
+                equipmentRow(objectMapper, "신발", "신발", "아케인 슈즈")
+        ));
+        current.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "무기", "무기", "에테르넬 스태프"),
+                equipmentRow(objectMapper, "장갑", "장갑", "아케인 장갑"),
+                equipmentRow(objectMapper, "신발", "신발", "에테르넬 슈즈")
+        ));
+
+        List<GrowthEventLogEntity> events = service.buildEvents(current, previous);
+        List<GrowthEventLogEntity> itemReplacedEvents = events.stream()
+                .filter(event -> "ITEM_REPLACED".equals(event.getEventType()))
+                .toList();
+
+        assertThat(itemReplacedEvents).hasSize(1);
+        GrowthEventLogEntity event = itemReplacedEvents.get(0);
+        assertThat(event.getImportanceLevel()).isEqualTo(2);
+        assertThat(event.getEventKey()).startsWith("item_replaced:");
+
+        JsonNode detailJson = event.getDetailJson();
+        assertThat(detailJson.get("changeCount").asInt()).isEqualTo(2);
+        assertThat(detailJson.get("changes")).isNotNull();
+        assertThat(detailJson.get("changes").isArray()).isTrue();
+        assertThat(detailJson.get("changes")).hasSize(2);
+        assertThat(detailJson.get("changes").get(0).get("slot").asText()).isEqualTo("무기");
+        assertThat(detailJson.get("changes").get(0).get("previousItemName").asText()).isEqualTo("아케인 스태프");
+        assertThat(detailJson.get("changes").get(0).get("currentItemName").asText()).isEqualTo("에테르넬 스태프");
+        assertThat(detailJson.get("changes").get(1).get("slot").asText()).isEqualTo("신발");
+        assertThat(detailJson.get("changes").get(1).get("previousItemName").asText()).isEqualTo("아케인 슈즈");
+        assertThat(detailJson.get("changes").get(1).get("currentItemName").asText()).isEqualTo("에테르넬 슈즈");
+    }
+
+    @Test
+    void itemReplacedEventKeyIsDeterministicBoundedAndOrderIndependentForEquivalentDiffs() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+        CharacterEntity character = new CharacterEntity("ocid-13", "Aries104", "루나", "나이트로드", "male", "img");
+
+        DailySnapshotEntity previousA = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity currentA = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+        previousA.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "신발", "신발", "아케인 슈즈"),
+                equipmentRow(objectMapper, "무기", "무기", "아케인 스태프")
+        ));
+        currentA.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "무기", "무기", "에테르넬 스태프"),
+                equipmentRow(objectMapper, "신발", "신발", "에테르넬 슈즈")
+        ));
+
+        DailySnapshotEntity previousB = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 3));
+        DailySnapshotEntity currentB = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 4));
+        previousB.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "무기", "무기", "아케인 스태프"),
+                equipmentRow(objectMapper, "신발", "신발", "아케인 슈즈")
+        ));
+        currentB.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "신발", "신발", "에테르넬 슈즈"),
+                equipmentRow(objectMapper, "무기", "무기", "에테르넬 스태프")
+        ));
+
+        GrowthEventLogEntity eventA = service.buildEvents(currentA, previousA).stream()
+                .filter(event -> "ITEM_REPLACED".equals(event.getEventType()))
+                .findFirst()
+                .orElseThrow();
+        GrowthEventLogEntity eventB = service.buildEvents(currentB, previousB).stream()
+                .filter(event -> "ITEM_REPLACED".equals(event.getEventType()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(eventA.getEventKey()).isEqualTo(eventB.getEventKey());
+        assertThat(eventA.getEventKey().length()).isLessThanOrEqualTo(255);
+    }
+
+    @Test
+    void recomputeWithGroupedItemReplacementStaysIdempotentAcrossSameDayRecompute() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-14", "Aries105", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
+        previous.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "무기", "무기", "아케인 스태프"),
+                equipmentRow(objectMapper, "신발", "신발", "아케인 슈즈")
+        ));
+        current.setRawEquipmentJson(rawEquipment(objectMapper,
+                equipmentRow(objectMapper, "무기", "무기", "에테르넬 스태프"),
+                equipmentRow(objectMapper, "신발", "신발", "에테르넬 슈즈")
+        ));
+
+        when(repository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        int firstCount = service.recomputeEvents(current, previous);
+        int secondCount = service.recomputeEvents(current, previous);
+
+        assertThat(firstCount).isGreaterThan(0);
+        assertThat(secondCount).isEqualTo(firstCount);
+        verify(repository, times(2)).deleteBySnapshot(current);
+
+        ArgumentCaptor<List<GrowthEventLogEntity>> savedCaptor = ArgumentCaptor.forClass(List.class);
+        verify(repository, times(2)).saveAll(savedCaptor.capture());
+        savedCaptor.getAllValues().forEach(savedEvents -> {
+            long groupedCount = savedEvents.stream()
+                    .filter(event -> "ITEM_REPLACED".equals(event.getEventType()))
+                    .count();
+            assertThat(groupedCount).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void itemReplacedIsNotGeneratedWhenComparableNormalizedDataMissingOnEitherSide() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+
+        CharacterEntity character = new CharacterEntity("ocid-15", "Aries106", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+
         previous.setRawEquipmentJson(objectMapper.createObjectNode().put("weapon", "old"));
+        current.setRawEquipmentJson(rawEquipment(objectMapper, equipmentRow(objectMapper, "무기", "무기", "에테르넬 스태프")));
 
         assertThat(service.buildEvents(current, previous)).extracting(GrowthEventLogEntity::getEventType)
                 .doesNotContain("ITEM_REPLACED");
+    }
+
+    @Test
+    void normalizeActiveEquipmentIncludesOnlyCompleteItemEquipmentRowsInDeterministicOrder() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode rawEquipment = objectMapper.createObjectNode();
+        rawEquipment.putArray("item_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "장갑")
+                        .put("item_equipment_slot", "장갑")
+                        .put("item_name", "아케인 장갑"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "무기")
+                        .put("item_equipment_slot", "무기")
+                        .put("item_name", "아케인 스태프"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "무기")
+                        .put("item_equipment_slot", "무기")
+                        .put("item_name", "에테르넬 스태프"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "모자")
+                        .put("item_name", "누락 슬롯"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_slot", "모자")
+                        .put("item_name", "누락 파트"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "신발")
+                        .put("item_equipment_slot", "신발"));
+        rawEquipment.putArray("item_equipment_preset_1")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "모자")
+                        .put("item_equipment_slot", "모자")
+                        .put("item_name", "프리셋 모자"));
+        rawEquipment.putArray("dragon_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "드래곤")
+                        .put("item_equipment_slot", "드래곤")
+                        .put("item_name", "드래곤 장비"));
+        rawEquipment.putArray("mechanic_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "메카닉")
+                        .put("item_equipment_slot", "메카닉")
+                        .put("item_name", "메카닉 장비"));
+
+        Map<GrowthEventService.ActiveEquipmentSlotKey, GrowthEventService.ActiveEquipmentRecord> normalized =
+                GrowthEventService.normalizeActiveEquipment(rawEquipment);
+
+        assertThat(normalized.values())
+                .extracting(GrowthEventService.ActiveEquipmentRecord::part, GrowthEventService.ActiveEquipmentRecord::slot, GrowthEventService.ActiveEquipmentRecord::itemName)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple("무기", "무기", "에테르넬 스태프"),
+                        org.assertj.core.groups.Tuple.tuple("장갑", "장갑", "아케인 장갑")
+                );
+    }
+
+    @Test
+    void buildComparablePairsSkipsIncompleteRowsAndMissingSlotsOnEitherSide() {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        ObjectNode previous = objectMapper.createObjectNode();
+        previous.putArray("item_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "무기")
+                        .put("item_equipment_slot", "무기")
+                        .put("item_name", "아케인 스태프"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "장갑")
+                        .put("item_equipment_slot", "장갑")
+                        .put("item_name", "아케인 장갑"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "모자")
+                        .put("item_name", "누락 슬롯"));
+
+        ObjectNode current = objectMapper.createObjectNode();
+        current.putArray("item_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "무기")
+                        .put("item_equipment_slot", "무기")
+                        .put("item_name", "에테르넬 스태프"))
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "신발")
+                        .put("item_equipment_slot", "신발")
+                        .put("item_name", "에테르넬 신발"));
+
+        List<GrowthEventService.ComparableActiveEquipmentPair> pairs =
+                GrowthEventService.buildComparableActiveEquipmentPairs(previous, current);
+
+        assertThat(pairs)
+                .extracting(
+                        GrowthEventService.ComparableActiveEquipmentPair::part,
+                        GrowthEventService.ComparableActiveEquipmentPair::slot,
+                        GrowthEventService.ComparableActiveEquipmentPair::previousItemName,
+                        GrowthEventService.ComparableActiveEquipmentPair::currentItemName
+                )
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("무기", "무기", "아케인 스태프", "에테르넬 스태프"));
+    }
+
+    @Test
+    void hasComparableActiveEquipmentIsFalseWhenOnlyPresetOrClassSpecificCollectionsExist() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ObjectNode rawEquipment = objectMapper.createObjectNode();
+        rawEquipment.putArray("item_equipment_preset_1")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "모자")
+                        .put("item_equipment_slot", "모자")
+                        .put("item_name", "프리셋 모자"));
+        rawEquipment.putArray("dragon_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "드래곤")
+                        .put("item_equipment_slot", "드래곤")
+                        .put("item_name", "드래곤 장비"));
+        rawEquipment.putArray("mechanic_equipment")
+                .add(objectMapper.createObjectNode()
+                        .put("item_equipment_part", "메카닉")
+                        .put("item_equipment_slot", "메카닉")
+                        .put("item_name", "메카닉 장비"));
+
+        assertThat(GrowthEventService.hasComparableActiveEquipment(rawEquipment)).isFalse();
     }
 
     private DailySnapshotEntity snapshot(CharacterEntity character, int level, long combatPower, BigDecimal expRate, Long exp, Integer unionLevel, Integer artifactLevel, Integer hexa, LocalDate date) {
@@ -240,5 +486,21 @@ class GrowthEventServiceTest {
         snapshot.setHexaMatrixLevelSum(hexa);
         snapshot.setCapturedAt(java.time.OffsetDateTime.parse("2026-08-02T04:00:00+09:00"));
         return snapshot;
+    }
+
+    private ObjectNode equipmentRow(ObjectMapper objectMapper, String part, String slot, String itemName) {
+        return objectMapper.createObjectNode()
+                .put("item_equipment_part", part)
+                .put("item_equipment_slot", slot)
+                .put("item_name", itemName);
+    }
+
+    private ObjectNode rawEquipment(ObjectMapper objectMapper, ObjectNode... rows) {
+        ObjectNode root = objectMapper.createObjectNode();
+        var itemEquipment = root.putArray("item_equipment");
+        for (ObjectNode row : rows) {
+            itemEquipment.add(row);
+        }
+        return root;
     }
 }
