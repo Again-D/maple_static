@@ -2,6 +2,8 @@ services:
   backend:
     build:
       context: ./backend
+    env_file:
+      - .env.supabase
     ports:
       - "8080:8080"
     restart: unless-stopped
