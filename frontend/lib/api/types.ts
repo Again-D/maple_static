@@ -87,9 +87,15 @@ export type ChartPoint = {
 };
 
 export type GrowthHistory = {
-  rangeDays: number;
+  range: RangeOption;
+  metric: MetricOption;
+  hasEnoughSnapshots: boolean;
   points: ChartPoint[];
 };
+
+export type RangeOption = "7d" | "30d" | "all";
+
+export type MetricOption = "combatPower" | "level" | "expRate" | "unionLevel" | "hexaMatrixLevelSum";
 
 export type GrowthEvent = {
   id: number;
@@ -102,7 +108,7 @@ export type GrowthEvent = {
 };
 
 export type Timeline = {
-  items: GrowthEvent[];
+  events: GrowthEvent[];
   hasMore: boolean;
   nextCursor: string | null;
 };

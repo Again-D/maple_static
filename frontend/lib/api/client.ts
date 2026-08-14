@@ -2,6 +2,9 @@ import type {
   ApiResponse,
   CharacterLookupData,
   DashboardData,
+  GrowthHistory,
+  MetricOption,
+  RangeOption,
   RefreshData
 } from "./types";
 
@@ -68,6 +71,11 @@ export function fetchCharacterLookup(name: string) {
 
 export function fetchDashboard(name: string) {
   return requestJson<DashboardData>(`/api/v1/characters/${encodeURIComponent(normalizeCharacterName(name))}/dashboard`);
+}
+
+export function fetchGrowthHistory(name: string, range: RangeOption, metric: MetricOption) {
+  const query = new URLSearchParams({ range, metric });
+  return requestJson<GrowthHistory>(`/api/v1/characters/${encodeURIComponent(normalizeCharacterName(name))}/growth-history?${query.toString()}`);
 }
 
 export function refreshCharacter(name: string) {

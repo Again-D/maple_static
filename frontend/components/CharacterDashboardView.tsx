@@ -4,7 +4,7 @@ import { ProfileHeader } from "./ProfileHeader";
 import { StateMessage } from "./StateMessage";
 import { SummaryCards } from "./SummaryCards";
 import { SyncStatus } from "./SyncStatus";
-import type { DashboardData } from "../lib/api/types";
+import type { DashboardData, RangeOption, MetricOption } from "../lib/api/types";
 import Link from "next/link";
 
 type CharacterDashboardViewProps = {
@@ -16,6 +16,12 @@ type CharacterDashboardViewProps = {
   refreshing: boolean;
   onRefresh: () => void;
   onRetry: () => void;
+  selectedRange?: RangeOption;
+  selectedMetric?: MetricOption;
+  onRangeChange?: (range: RangeOption) => void;
+  onMetricChange?: (metric: MetricOption) => void;
+  chartLoading?: boolean;
+  chartError?: string | null;
 };
 
 function LoadingSkeleton({ name }: { name: string }) {
@@ -39,7 +45,22 @@ function LoadingSkeleton({ name }: { name: string }) {
   );
 }
 
-export function CharacterDashboardView({ name, status, data, errorMessage, banner, refreshing, onRefresh, onRetry }: CharacterDashboardViewProps) {
+export function CharacterDashboardView({
+  name,
+  status,
+  data,
+  errorMessage,
+  banner,
+  refreshing,
+  onRefresh,
+  onRetry,
+  selectedRange,
+  selectedMetric,
+  onRangeChange,
+  onMetricChange,
+  chartLoading = false,
+  chartError = null
+}: CharacterDashboardViewProps) {
   if (status === "loading") {
     return <LoadingSkeleton name={name} />;
   }
@@ -74,7 +95,7 @@ export function CharacterDashboardView({ name, status, data, errorMessage, banne
     );
   }
 
-  const hasEnoughSnapshots = data.summary.hasEnoughSnapshots;
+  const hasEnoughSnapshots = data.chart.hasEnoughSnapshots;
 
   return (
     <main className="shell shell--dashboard">
@@ -89,8 +110,17 @@ export function CharacterDashboardView({ name, status, data, errorMessage, banne
       <ProfileHeader profile={data.profile} latestSnapshot={data.latestSnapshot} />
       <SyncStatus syncState={data.syncState} onRefresh={onRefresh} refreshing={refreshing} />
       <SummaryCards summary={data.summary} />
-      <CombatPowerChart chart={data.chart} hasEnoughSnapshots={hasEnoughSnapshots} />
-      <EventTimeline timeline={data.timeline} hasEnoughSnapshots={hasEnoughSnapshots} />
+      <CombatPowerChart
+        chart={data.chart}
+        hasEnoughSnapshots={hasEnoughSnapshots}
+        selectedRange={selectedRange}
+        selectedMetric={selectedMetric}
+        onRangeChange={onRangeChange}
+        onMetricChange={onMetricChange}
+        chartLoading={chartLoading}
+        chartError={chartError}
+      />
+      <EventTimeline timeline={data.timeline} hasEnoughSnapshots={data.summary.hasEnoughSnapshots} />
     </main>
   );
 }

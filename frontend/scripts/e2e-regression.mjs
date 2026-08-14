@@ -52,7 +52,9 @@ const dashboard = {
     eventCount: 2
   },
   chart: {
-    rangeDays: 7,
+    range: "7d",
+    metric: "combatPower",
+    hasEnoughSnapshots: true,
     points: [
       {
         snapshotDate: "2026-08-12",
@@ -64,7 +66,7 @@ const dashboard = {
       }
     ]
   },
-  timeline: { items: [], hasMore: false, nextCursor: null }
+  timeline: { events: [], hasMore: false, nextCursor: null }
 };
 
 function response(data) {
@@ -111,7 +113,7 @@ async function waitForServer() {
 async function main() {
   const apiServer = createServer((request, responseStream) => {
     const requestUrl = new URL(request.url, "http://127.0.0.1");
-    const match = requestUrl.pathname.match(/^\/api\/v1\/characters\/([^/]+)\/(dashboard|refresh)$/);
+    const match = requestUrl.pathname.match(/^\/api\/v1\/characters\/([^/]+)\/(dashboard|growth-history|refresh)$/);
 
     responseStream.setHeader("Access-Control-Allow-Origin", frontendUrl);
     responseStream.setHeader("Content-Type", "application/json");
@@ -132,6 +134,12 @@ async function main() {
     }
     if (operation === "dashboard") {
       responseStream.end(response(dashboard));
+      return;
+    }
+    if (operation === "growth-history") {
+      const range = requestUrl.searchParams.get("range") || "7d";
+      const metric = requestUrl.searchParams.get("metric") || "combatPower";
+      responseStream.end(response({ ...dashboard.chart, range, metric }));
       return;
     }
     if (request.method === "POST") {
@@ -176,6 +184,10 @@ async function main() {
       throw error;
     }
     expectText(await runBrowser(["read"]), "Test Hero", "Search must navigate to the character dashboard");
+    await runBrowser(["click", '[data-testid="growth-range-30d"]']);
+    await runBrowser(["wait", "--text", "최근 30일 전투력 성장"]);
+    await runBrowser(["click", '[data-testid="growth-metric-hexa-sum"]']);
+    await runBrowser(["wait", "--text", "최근 30일 헥사 매트릭스 레벨 합계 성장"]);
 
     await runBrowser(["click", "button.refresh-button"]);
     await runBrowser(["wait", "--text", "새로고침이 완료되었습니다."]);

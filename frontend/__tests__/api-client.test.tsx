@@ -6,11 +6,12 @@ import {
   canSubmitSearch,
   fetchCharacterLookup,
   fetchDashboard,
+  fetchGrowthHistory,
   getApiBaseUrl,
   normalizeCharacterName,
   refreshCharacter
 } from "../lib/api/client";
-import type { DashboardData } from "../lib/api/types";
+import type { DashboardData, GrowthHistory, RangeOption } from "../lib/api/types";
 
 describe("api client helpers", () => {
   it("trims names for routes", () => {
@@ -62,18 +63,20 @@ describe("api client helpers", () => {
         eventCount: 0
       },
       chart: {
-        rangeDays: 7,
+        range: "7d",
+        metric: "combatPower",
+        hasEnoughSnapshots: false,
         points: []
       },
       timeline: {
-        items: [],
+        events: [],
         hasMore: false,
         nextCursor: null
       }
     };
 
     assert.equal(sample.summary.hasEnoughSnapshots, false);
-    assert.equal(sample.timeline.items.length, 0);
+    assert.equal(sample.timeline.events.length, 0);
   });
 
   it("calls encoded api paths and parses wrapper responses", async () => {
@@ -128,6 +131,105 @@ describe("api client helpers", () => {
       assert.equal(requests[0].url, "http://localhost:8080/api/v1/characters/%EC%95%84%EB%A6%AC%EC%97%98");
       assert.equal(requests[1].url, "http://localhost:8080/api/v1/characters/%EC%95%84%EB%A6%AC%EC%97%98/dashboard");
       assert.equal(requests[2].init?.method, "POST");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("fetches growth-history with selected range and metric", async () => {
+    const requests: Array<{ url: string; init?: RequestInit }> = [];
+    const originalFetch = globalThis.fetch;
+    const history: GrowthHistory = {
+      range: "30d",
+      metric: "level",
+      hasEnoughSnapshots: true,
+      points: [
+        {
+          snapshotDate: "2026-08-14",
+          combatPower: null,
+          level: 250,
+          expRate: 10.5,
+          unionLevel: null,
+          hexaMatrixLevelSum: null
+        }
+      ]
+    };
+    globalThis.fetch = (async (url: string | URL, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: history,
+          meta: {
+            serverTime: "2026-08-15T04:10:00+09:00",
+            timezone: "Asia/Seoul"
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }) as typeof fetch;
+
+    try {
+      const result = await fetchGrowthHistory("Aries92", "30d", "level");
+
+      assert.equal(result.success, true);
+      assert.equal(requests[0].url, "http://localhost:8080/api/v1/characters/Aries92/growth-history?range=30d&metric=level");
+      if (!result.success) {
+        assert.fail("expected success response");
+      }
+      assert.equal(result.data.range, "30d");
+      assert.equal(result.data.metric, "level");
+      assert.equal(result.data.hasEnoughSnapshots, true);
+      assert.equal(result.data.points.length, 1);
+      assert.equal(result.data.points[0].level, 250);
+      assert.equal(result.meta.serverTime, "2026-08-15T04:10:00+09:00");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("preserves error and meta shape for invalid growth-history selectors", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: "INVALID_CHARACTER_NAME",
+            message: "지원하지 않는 range 값입니다. (지원: 7d, 30d, all)",
+            retryable: false
+          },
+          meta: {
+            serverTime: "2026-08-15T04:10:00+09:00",
+            timezone: "Asia/Seoul"
+          }
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }) as typeof fetch;
+
+    try {
+      const result = await fetchGrowthHistory("Aries92", "90d" as RangeOption, "level");
+
+      assert.equal(result.success, false);
+      if (result.success) {
+        assert.fail("expected failure response");
+      }
+      assert.equal(result.error.code, "INVALID_CHARACTER_NAME");
+      assert.equal(result.error.retryable, false);
+      assert.match(result.error.message, /range/);
+      assert.equal(result.meta.serverTime, "2026-08-15T04:10:00+09:00");
+      assert.equal(result.meta.timezone, "Asia/Seoul");
     } finally {
       globalThis.fetch = originalFetch;
     }

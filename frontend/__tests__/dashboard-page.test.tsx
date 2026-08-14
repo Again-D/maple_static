@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { CharacterDashboardView } from "../components/CharacterDashboardView";
+import { CombatPowerChart } from "../components/CombatPowerChart";
+import type { DashboardData } from "../lib/api/types";
 
-const sampleData = {
+const sampleData: DashboardData = {
   profile: {
     id: "1",
     ocid: "ocid",
@@ -47,7 +49,9 @@ const sampleData = {
     eventCount: 2
   },
   chart: {
-    rangeDays: 7,
+    range: "7d",
+    metric: "combatPower",
+    hasEnoughSnapshots: true,
     points: [
       {
         snapshotDate: "2026-08-01",
@@ -68,7 +72,7 @@ const sampleData = {
     ]
   },
   timeline: {
-    items: [
+    events: [
       {
         id: 1,
         eventDate: "2026-08-02",
@@ -108,7 +112,7 @@ describe("dashboard page", () => {
       <CharacterDashboardView
         name="Aries92"
         status="ready"
-        data={{ ...sampleData, summary: { ...sampleData.summary, hasEnoughSnapshots: false }, chart: { rangeDays: 7, points: [sampleData.chart.points[1]] }, timeline: { items: [], hasMore: false, nextCursor: null } }}
+        data={{ ...sampleData, summary: { ...sampleData.summary, hasEnoughSnapshots: false }, chart: { range: "7d", metric: "combatPower", hasEnoughSnapshots: false, points: [sampleData.chart.points[1]] }, timeline: { events: [], hasMore: false, nextCursor: null } }}
         errorMessage={null}
         banner={null}
         refreshing={false}
@@ -140,6 +144,87 @@ describe("dashboard page", () => {
     assert.match(html, /전투력 변화/);
     assert.match(html, /새로고침이 완료되었습니다/);
     assert.match(html, /\/api\/character-image\?url=/);
+    assert.match(html, /data-testid="profile-image"/);
+    assert.match(html, /data-testid="growth-range-30d"/);
+    assert.match(html, /data-testid="growth-metric-hexa-sum"/);
+    assert.match(html, /aria-pressed="true"/);
+  });
+
+  it("renders grouped replacement details for ITEM_REPLACED events", () => {
+    const dataWithItemReplaced: DashboardData = {
+      ...sampleData,
+      timeline: {
+        events: [
+          {
+            id: 2,
+            eventDate: "2026-08-02",
+            eventType: "ITEM_REPLACED",
+            importanceLevel: 2,
+            title: "장비 2개 교체",
+            description: "장비가 교체되었습니다.",
+            detail: {
+              changes: [
+                { slot: "무기", previousItemName: "아케인 스태프", currentItemName: "에테르넬 스태프" },
+                { slot: "신발", previousItemName: "아케인 슈즈", currentItemName: "에테르넬 슈즈" }
+              ]
+            }
+          }
+        ],
+        hasMore: false,
+        nextCursor: null
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      <CharacterDashboardView
+        name="Aries92"
+        status="ready"
+        data={dataWithItemReplaced}
+        errorMessage={null}
+        banner={null}
+        refreshing={false}
+        onRefresh={() => undefined}
+        onRetry={() => undefined}
+      />
+    );
+
+    assert.match(html, /data-testid="event-item-replaced-details"/);
+    assert.match(html, /무기: 아케인 스태프/);
+    assert.match(html, /에테르넬 스태프/);
+    assert.match(html, /신발: 아케인 슈즈/);
+    assert.match(html, /에테르넬 슈즈/);
+  });
+
+  it("renders the selector-driven chart controls and selected metric values", () => {
+    const html = renderToStaticMarkup(
+      <CombatPowerChart
+        chart={sampleData.chart}
+        hasEnoughSnapshots={true}
+        selectedRange="30d"
+        selectedMetric="level"
+        onRangeChange={() => undefined}
+        onMetricChange={() => undefined}
+      />
+    );
+
+    assert.match(html, /data-testid="growth-range-30d"[^>]*aria-pressed="true"/);
+    assert.match(html, /data-testid="growth-metric-level"[^>]*aria-pressed="true"/);
+    assert.match(html, /최근 30일 레벨 성장/);
+    assert.match(html, />278<\//);
+  });
+
+  it("uses metric-aware empty-state copy", () => {
+    const html = renderToStaticMarkup(
+      <CombatPowerChart
+        chart={{ ...sampleData.chart, metric: "hexaMatrixLevelSum", hasEnoughSnapshots: false, points: [sampleData.chart.points[1]] }}
+        hasEnoughSnapshots={false}
+        selectedRange="all"
+        selectedMetric="hexaMatrixLevelSum"
+      />
+    );
+
+    assert.match(html, /헥사 매트릭스 레벨 합계 지표를 비교할 스냅샷이 아직 부족합니다/);
+    assert.doesNotMatch(html, /class="chart/);
   });
 
   it("renders refreshing state without hiding cached content", () => {

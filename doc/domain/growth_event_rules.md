@@ -25,7 +25,7 @@ MVP에서는 사용자가 최근 성장 흐름을 이해하는 데 필요한 기
 
 ## 4. MVP 이벤트 타입
 
-MVP에서 생성하는 이벤트 타입은 아래 네 가지를 우선한다.
+MVP에서 생성하는 이벤트 타입은 아래 다섯 가지다.
 
 | 이벤트 타입 | MVP 생성 여부 | 설명 |
 | :--- | :--- | :--- |
@@ -33,7 +33,7 @@ MVP에서 생성하는 이벤트 타입은 아래 네 가지를 우선한다.
 | `COMBAT_POWER_CHANGE` | 생성 | 전투력이 의미 있는 폭으로 상승 또는 하락했을 때 기록한다. |
 | `HEXA_UPGRADED` | 생성 | 헥사 매트릭스 레벨 합산이 상승했을 때 기록한다. |
 | `UNION_UPGRADED` | 생성 | 유니온 레벨 또는 유니온 아티팩트 레벨이 상승했을 때 기록한다. |
-| `ITEM_REPLACED` | 보류 | 타입과 저장 구조는 유지하되 MVP에서는 상세 생성 규칙과 UI를 제외한다. |
+| `ITEM_REPLACED` | 생성 | 활성 장비 슬롯의 아이템명이 바뀐 경우 현재 날짜에 한 건으로 묶어 기록한다. |
 
 ## 5. 이벤트별 판정 규칙
 
@@ -91,29 +91,34 @@ MVP에서 생성하는 이벤트 타입은 아래 네 가지를 우선한다.
 
 ### 5.5. 장비 교체
 
-- E27. MVP에서는 `ITEM_REPLACED` 이벤트를 자동 생성하지 않는다.
-- E28. 장비 원본 JSON은 저장하지만, 장비별 동일성 판정과 옵션 Diff는 MVP 이후에 정의한다.
-- E29. 장비 변경 UI는 "MVP 이후" 기능으로 남긴다.
+- E27. 비교 대상은 `raw_equipment_json.item_equipment`의 활성 장비 목록뿐이다. 프리셋과 직업별 장비 목록은 제외한다.
+- E28. 각 행에서 `item_equipment_part`, `item_equipment_slot`, `item_name`이 모두 있는 경우에만 `(part, slot) -> item_name`으로 정규화한다.
+- E29. 현재 대표 스냅샷과 가장 최근 이전 날짜 대표 스냅샷의 정규화 결과에서 같은 슬롯의 이름이 달라진 경우를 교체로 판정한다. 어느 한쪽이라도 비교 가능한 데이터가 없으면 이벤트를 생성하지 않는다.
+- E30. 한 스냅샷 날짜의 여러 교체는 하나의 `ITEM_REPLACED` 이벤트로 묶고, `detail_json.changes[]`는 슬롯명과 이전/현재 아이템명을 정렬해 저장한다.
+- E31. `ITEM_REPLACED`의 중요도는 2이며, 같은 날짜 재계산에서는 기존 한 건을 갱신하거나 삭제하고 중복 생성하지 않는다.
+- E32. 장비 원본 JSON은 저장하지만 옵션, 잠재능력, 스타포스, 프리셋 차이는 비교하지 않는다.
 
 ## 6. 이벤트 상세 데이터
 
-- E30. 모든 이벤트는 이전 값, 현재 값, 차이값을 `detail_json`에 저장할 수 있어야 한다.
-- E31. `LEVEL_UP`은 이전 레벨, 현재 레벨, 증가량을 저장한다.
-- E32. `COMBAT_POWER_CHANGE`는 이전 전투력, 현재 전투력, 절대 변화량, 변화율, 방향을 저장한다.
-- E33. `HEXA_UPGRADED`는 이전 헥사 합산 레벨, 현재 헥사 합산 레벨, 증가량을 저장한다.
-- E34. `UNION_UPGRADED`는 이전/현재 유니온 레벨과 이전/현재 유니온 아티팩트 레벨을 저장한다.
-- E35. MVP에서는 `detail_json`이 UI 상세 팝업의 완전한 계약이 아니라 이벤트 생성 근거를 보존하는 용도다.
+- E33. 모든 이벤트는 이전 값, 현재 값, 차이값을 `detail_json`에 저장할 수 있어야 한다.
+- E34. `LEVEL_UP`은 이전 레벨, 현재 레벨, 증가량을 저장한다.
+- E35. `COMBAT_POWER_CHANGE`는 이전 전투력, 현재 전투력, 절대 변화량, 변화율, 방향을 저장한다.
+- E36. `HEXA_UPGRADED`는 이전 헥사 합산 레벨, 현재 헥사 합산 레벨, 증가량을 저장한다.
+- E37. `UNION_UPGRADED`는 이전/현재 유니온 레벨과 이전/현재 유니온 아티팩트 레벨을 저장한다.
+- E38. `ITEM_REPLACED`는 `{ changeCount, changes: [{ slot, previousItemName, currentItemName }] }` 형태를 저장한다.
+- E39. `detail_json`은 이벤트 근거와 타임라인 표시를 위한 제한된 payload이며 옵션 상세 drawer 계약이 아니다.
 
 ## 7. 중복 방지 정책
 
-- E36. 같은 `snapshot_id`에 대해 같은 의미의 이벤트는 한 번만 존재해야 한다.
-- E37. 이벤트 재계산은 같은 스냅샷을 여러 번 처리해도 타임라인 항목을 중복으로 늘리지 않아야 한다.
-- E38. MVP의 중복 판정 키는 `snapshot_id`, `event_type`, 이벤트별 stable detail key 조합이다.
-- E39. `LEVEL_UP`의 stable detail key는 `from_level -> to_level`이다.
-- E40. `COMBAT_POWER_CHANGE`의 stable detail key는 `from_combat_power -> to_combat_power`다.
-- E41. `HEXA_UPGRADED`의 stable detail key는 `from_hexa_sum -> to_hexa_sum`이다.
-- E42. `UNION_UPGRADED`의 stable detail key는 `from_union_level/from_artifact_level -> to_union_level/to_artifact_level`이다.
-- E43. 기존 DB 스키마에는 중복 방지용 유니크 제약이 없으므로, 구현 계획에서 서비스 레벨 중복 방지 또는 DB 제약 추가 여부를 결정한다.
+- E40. 같은 `snapshot_id`에 대해 같은 의미의 이벤트는 한 번만 존재해야 한다.
+- E41. 이벤트 재계산은 같은 스냅샷을 여러 번 처리해도 타임라인 항목을 중복으로 늘리지 않아야 한다.
+- E42. 중복 판정 키는 `snapshot_id`, `event_type`, 이벤트별 stable detail key 조합이다.
+- E43. `LEVEL_UP`의 stable detail key는 `from_level -> to_level`이다.
+- E44. `COMBAT_POWER_CHANGE`의 stable detail key는 `from_combat_power -> to_combat_power`다.
+- E45. `HEXA_UPGRADED`의 stable detail key는 `from_hexa_sum -> to_hexa_sum`이다.
+- E46. `UNION_UPGRADED`의 stable detail key는 `from_union_level/from_artifact_level -> to_union_level/to_artifact_level`이다.
+- E47. `ITEM_REPLACED`의 stable detail key는 정렬된 `(part, slot, previous_name, current_name)` tuple 목록을 canonicalize한 bounded hash다.
+- E48. 서비스 재계산과 `event_key` 유니크 제약을 함께 사용해 동일 이벤트의 저장 중복을 방지한다.
 
 ## 8. 이벤트 제목과 설명 규칙
 
@@ -144,7 +149,7 @@ MVP에서 생성하는 이벤트 타입은 아래 네 가지를 우선한다.
 
 ## 11. MVP 이후로 미루는 이벤트
 
-- 장비 교체와 장비 옵션 상세 Diff
+- 장비 옵션/잠재능력/스타포스 상세 Diff
 - 스타포스 변화 감지
 - 잠재능력/에디셔널 잠재능력 변화 감지
 - 보스 처치 이벤트
@@ -162,7 +167,7 @@ MVP에서 생성하는 이벤트 타입은 아래 네 가지를 우선한다.
 - AC5. 헥사 매트릭스 레벨 합산이 증가하면 `HEXA_UPGRADED` 이벤트가 생성된다.
 - AC6. 유니온 레벨 또는 유니온 아티팩트 레벨이 증가하면 `UNION_UPGRADED` 이벤트가 생성된다.
 - AC7. 같은 스냅샷을 여러 번 처리해도 같은 이벤트가 중복 표시되지 않는다.
-- AC8. MVP에서는 장비 원본 JSON이 바뀌어도 `ITEM_REPLACED` 이벤트가 자동 생성되지 않는다.
+- AC8. 활성 장비의 슬롯과 아이템명이 바뀌면 현재 날짜에 하나의 grouped `ITEM_REPLACED` 이벤트가 생성되고, 불완전한 payload에서는 생성되지 않는다.
 
 ## 13. 관련 문서
 
