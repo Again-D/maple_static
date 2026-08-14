@@ -17,7 +17,7 @@ const dashboard = {
     worldName: "Scania",
     jobName: "Arch Mage",
     gender: null,
-    imageUrl: null,
+    imageUrl: "https://open.api.nexon.com/static/maplestory/character/look/e2e-fixture.png",
     isAutoTrack: true
   },
   latestSnapshot: {
@@ -184,6 +184,18 @@ async function main() {
       throw error;
     }
     expectText(await runBrowser(["read"]), "Test Hero", "Search must navigate to the character dashboard");
+    await runBrowser(["set", "viewport", "1280", "720"]);
+    await runBrowser([
+      "wait",
+      "--fn",
+      "(() => { const image = document.querySelector('[data-testid=profile-image]'); if (!image) return false; const style = getComputedStyle(image); return style.width === '128px' && style.height === '128px' && style.objectFit === 'contain'; })()"
+    ]);
+    await runBrowser(["set", "viewport", "390", "844"]);
+    await runBrowser([
+      "wait",
+      "--fn",
+      "(() => { const image = document.querySelector('[data-testid=profile-image]'); if (!image) return false; const style = getComputedStyle(image); return style.width === '112px' && style.height === '112px' && style.objectFit === 'contain'; })()"
+    ]);
     await runBrowser(["click", '[data-testid="growth-range-30d"]']);
     await runBrowser(["wait", "--text", "최근 30일 전투력 성장"]);
     await runBrowser(["click", '[data-testid="growth-metric-hexa-sum"]']);
