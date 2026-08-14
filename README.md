@@ -25,18 +25,29 @@ It pairs a Spring Boot backend, a Next.js frontend, and a Supabase PostgreSQL sc
 1. Apply [`database/schema.sql`](database/schema.sql) to PostgreSQL or Supabase first.
 2. Keep backend-only secrets such as `NEXON_API_KEY` in a backend env file, not in the frontend.
 3. Keep browser-visible values limited to `NEXT_PUBLIC_` variables in the frontend env file.
-4. Use [`.env.local.example`](.env.local.example) for the local Docker path.
-5. Use [`.env.supabase.example`](.env.supabase.example) for the Supabase Docker path.
+4. Copy [`.env.supabase.example`](.env.supabase.example) to `.env.supabase` for the default Docker path.
+5. Use [`.env.local.example`](.env.local.example) only when you explicitly want the local PostgreSQL Docker path.
 6. Start the backend before the frontend.
 
 ### Docker
 
-There are two selectable Docker paths:
+The default Docker path uses Supabase PostgreSQL. The local PostgreSQL path is an explicit override.
 
-#### Local PostgreSQL
+#### Supabase PostgreSQL (default)
+
+1. Copy [`.env.supabase.example`](.env.supabase.example) to `.env.supabase` and fill in your Supabase values.
+2. Start the default stack:
+
+```bash
+docker compose up --build
+```
+
+This keeps the frontend and backend in Docker and points the backend at Supabase. The base compose file loads `.env.supabase` automatically.
+
+#### Local PostgreSQL (explicit override)
 
 1. Copy [`.env.local.example`](.env.local.example) to `.env.local` and fill in any values you want to override.
-2. Start the stack:
+2. Start the local stack explicitly:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.local.yml --env-file .env.local up --build
@@ -48,18 +59,7 @@ This starts:
 - Spring Boot backend on `localhost:8080`
 - Next.js frontend on `localhost:3000`
 
-The local database is seeded from [`database/schema.sql`](database/schema.sql).
-
-#### Supabase PostgreSQL
-
-1. Copy [`.env.supabase.example`](.env.supabase.example) to `.env.supabase` and fill in your Supabase values.
-2. Start the stack:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.supabase.yml --env-file .env.supabase up --build
-```
-
-This keeps the frontend and backend in Docker, but points the backend at Supabase instead of the local `postgres` container.
+The local database is seeded from [`database/schema.sql`](database/schema.sql). Adding `docker-compose.local.yml` overrides the default Supabase environment file and adds the local `postgres` service.
 
 ### Backend
 
