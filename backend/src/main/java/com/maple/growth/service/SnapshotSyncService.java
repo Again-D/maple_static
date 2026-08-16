@@ -23,7 +23,7 @@ import com.maple.growth.entity.GrowthEventLogEntity;
 import com.maple.growth.repository.CharacterRepository;
 import com.maple.growth.repository.DailySnapshotRepository;
 import com.maple.growth.repository.GrowthEventLogRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
-@RequiredArgsConstructor
 public class SnapshotSyncService {
 
     private final CharacterRepository characterRepository;
@@ -46,6 +45,43 @@ public class SnapshotSyncService {
     private final KstClock kstClock;
     private final ObjectMapper objectMapper;
     private final PlatformTransactionManager transactionManager;
+    private final EquipmentViewService equipmentViewService;
+
+    @Autowired
+    public SnapshotSyncService(
+            CharacterRepository characterRepository,
+            DailySnapshotRepository dailySnapshotRepository,
+            GrowthEventLogRepository growthEventLogRepository,
+            NexonApiClient nexonApiClient,
+            GrowthEventService growthEventService,
+            KstClock kstClock,
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager,
+            EquipmentViewService equipmentViewService
+    ) {
+        this.characterRepository = characterRepository;
+        this.dailySnapshotRepository = dailySnapshotRepository;
+        this.growthEventLogRepository = growthEventLogRepository;
+        this.nexonApiClient = nexonApiClient;
+        this.growthEventService = growthEventService;
+        this.kstClock = kstClock;
+        this.objectMapper = objectMapper;
+        this.transactionManager = transactionManager;
+        this.equipmentViewService = equipmentViewService;
+    }
+
+    public SnapshotSyncService(
+            CharacterRepository characterRepository,
+            DailySnapshotRepository dailySnapshotRepository,
+            GrowthEventLogRepository growthEventLogRepository,
+            NexonApiClient nexonApiClient,
+            GrowthEventService growthEventService,
+            KstClock kstClock,
+            ObjectMapper objectMapper,
+            PlatformTransactionManager transactionManager
+    ) {
+        this(characterRepository, dailySnapshotRepository, growthEventLogRepository, nexonApiClient, growthEventService, kstClock, objectMapper, transactionManager, new EquipmentViewService());
+    }
 
     @Transactional
     public CharacterLookupResponseDto lookupOrRegister(String rawName) {
@@ -227,7 +263,7 @@ public class SnapshotSyncService {
         boolean hasEnoughSnapshots = chartPoints.stream().filter(point -> point.combatPower() != null).count() >= 2;
         var chart = new GrowthHistoryDto("7d", "combatPower", hasEnoughSnapshots, chartPoints);
         var timeline = events(character, 20);
-        return new DashboardResponseDto(toProfile(character), toSnapshot(latestSnapshot), toSyncState(character, latestSnapshot != null), summary, chart, timeline);
+        return new DashboardResponseDto(toProfile(character), toSnapshot(latestSnapshot), toSyncState(character, latestSnapshot != null), summary, chart, timeline, equipmentViewService.fromSnapshot(latestSnapshot));
     }
 
     private RefreshResponseDto buildRefreshResponse(CharacterEntity character, DailySnapshotEntity latestSnapshot, boolean created, boolean updated, int createdEventCount) {
