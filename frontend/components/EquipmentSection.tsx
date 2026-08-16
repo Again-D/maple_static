@@ -9,6 +9,7 @@ function imageUrl(url: string | null) {
 
 export function EquipmentSection({ name, equipment }: { name: string; equipment?: EquipmentData }) {
   const items = equipment?.items ?? [];
+  const candidates = equipment?.upgradeCandidates ?? [];
 
   return (
     <section className="panel panel--wide" aria-labelledby="equipment-heading">
@@ -40,6 +41,21 @@ export function EquipmentSection({ name, equipment }: { name: string; equipment?
           })}
         </ul>
       )}
+      {candidates.length > 0 ? (
+        <div className="equipment-candidates" aria-labelledby="equipment-candidates-heading">
+          <h3 id="equipment-candidates-heading">우선 검토 장비</h3>
+          <ul>
+            {candidates.map((candidate) => (
+              <li key={`${candidate.itemId}-${candidate.category}`}>
+                <Link href={`/character/${encodeURIComponent(name)}/equipment/${encodeURIComponent(candidate.itemId)}`}>
+                  <strong>{candidate.itemName}</strong> · {candidate.category}
+                </Link>
+                <span>{candidate.reason}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }

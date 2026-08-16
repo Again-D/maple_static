@@ -3,6 +3,7 @@ package com.maple.growth.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.maple.growth.dto.api.EquipmentDataDto;
 import com.maple.growth.dto.api.EquipmentItemDto;
+import com.maple.growth.dto.api.EquipmentUpgradeCandidateDto;
 import com.maple.growth.entity.DailySnapshotEntity;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,7 +44,19 @@ public class EquipmentViewService {
         }
         List<EquipmentItemDto> items = new ArrayList<>(itemsById.values());
         items.sort(Comparator.comparing(EquipmentItemDto::part).thenComparing(EquipmentItemDto::slot));
-        return new EquipmentDataDto(items, snapshot.getSnapshotDate().toString(), snapshot.getCapturedAt().toString(), !items.isEmpty());
+        return new EquipmentDataDto(items, snapshot.getSnapshotDate().toString(), snapshot.getCapturedAt().toString(), !items.isEmpty(), candidates(items));
+    }
+
+    private static List<EquipmentUpgradeCandidateDto> candidates(List<EquipmentItemDto> items) {
+        List<EquipmentUpgradeCandidateDto> candidates = new ArrayList<>();
+        for (EquipmentItemDto item : items) {
+            if (item.starforce() != null && "0".equals(item.starforce())) {
+                candidates.add(new EquipmentUpgradeCandidateDto(item.id(), item.name(), item.part(), item.slot(), "스타포스", "현재 스타포스가 0이라 우선 검토 후보입니다."));
+            } else if ("레어".equals(item.potentialGrade()) || "일반".equals(item.potentialGrade())) {
+                candidates.add(new EquipmentUpgradeCandidateDto(item.id(), item.name(), item.part(), item.slot(), "잠재능력", "현재 잠재능력 등급이 낮아 우선 검토 후보입니다."));
+            }
+        }
+        return List.copyOf(candidates);
     }
 
     private EquipmentItemDto normalize(JsonNode item) {

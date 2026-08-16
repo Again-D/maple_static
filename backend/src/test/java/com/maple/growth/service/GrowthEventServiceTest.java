@@ -258,6 +258,32 @@ class GrowthEventServiceTest {
         assertThat(detailJson.get("changes").get(1).get("slot").asText()).isEqualTo("신발");
         assertThat(detailJson.get("changes").get(1).get("previousItemName").asText()).isEqualTo("아케인 슈즈");
         assertThat(detailJson.get("changes").get(1).get("currentItemName").asText()).isEqualTo("에테르넬 슈즈");
+        assertThat(detailJson.get("combatPower").get("status").asText()).isEqualTo("unchanged");
+        assertThat(detailJson.get("combatPower").get("message").asText()).isEqualTo("전투력 변화 없음");
+    }
+
+    @Test
+    void itemReplacementAddsEstimatedContributionAndValuesOnlyComparison() {
+        GrowthEventLogRepository repository = mock(GrowthEventLogRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        GrowthEventService service = new GrowthEventService(repository, objectMapper);
+        CharacterEntity character = new CharacterEntity("ocid-16", "Aries107", "루나", "나이트로드", "male", "img");
+        DailySnapshotEntity previous = snapshot(character, 100, 1_000_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 1));
+        DailySnapshotEntity current = snapshot(character, 100, 1_200_000L, new BigDecimal("10.0000"), 1_000L, 800, 5, 1, LocalDate.of(2026, 8, 2));
+        ObjectNode oldWeapon = equipmentRow(objectMapper, "무기", "무기", "이전 무기").put("item_starforce", "17").put("item_potential_option_grade", "에픽");
+        ObjectNode newWeapon = equipmentRow(objectMapper, "무기", "무기", "현재 무기").put("item_starforce", "22").put("item_potential_option_grade", "레전드리");
+        previous.setRawEquipmentJson(rawEquipment(objectMapper, oldWeapon));
+        current.setRawEquipmentJson(rawEquipment(objectMapper, newWeapon));
+
+        GrowthEventLogEntity event = service.buildEvents(current, previous).stream()
+                .filter(item -> "ITEM_REPLACED".equals(item.getEventType()))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(event.getDetailJson().get("combatPower").get("status").asText()).isEqualTo("estimated");
+        assertThat(event.getDetailJson().get("combatPower").get("estimatedEquipmentContribution").asLong()).isEqualTo(200_000L);
+        assertThat(event.getDetailJson().get("changes").get(0).get("previous").get("starforce").asText()).isEqualTo("17");
+        assertThat(event.getDetailJson().get("changes").get(0).get("current").get("potentialGrade").asText()).isEqualTo("레전드리");
     }
 
     @Test

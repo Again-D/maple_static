@@ -140,6 +140,16 @@ export type EquipmentData = {
   snapshotDate: string | null;
   capturedAt: string | null;
   available: boolean;
+  upgradeCandidates?: EquipmentUpgradeCandidate[];
+};
+
+export type EquipmentUpgradeCandidate = {
+  itemId: string;
+  itemName: string;
+  part: string;
+  slot: string;
+  category: string;
+  reason: string;
 };
 
 export type CharacterLookupData = {

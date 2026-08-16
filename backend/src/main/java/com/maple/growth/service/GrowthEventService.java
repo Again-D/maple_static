@@ -157,12 +157,9 @@ public class GrowthEventService {
         String eventKey = buildItemReplacementEventKey(changes);
         ObjectNode detailJson = objectMapper.createObjectNode();
         detailJson.put("changeCount", changes.size());
+        addCombatPowerContext(detailJson, current, previous);
         detailJson.set("changes", objectMapper.valueToTree(changes.stream()
-                .map(change -> values(
-                        "slot", change.slot(),
-                        "previousItemName", change.previousItemName(),
-                        "currentItemName", change.currentItemName()
-                ))
+                .map(change -> comparisonNode(change, previous.getRawEquipmentJson(), current.getRawEquipmentJson()))
                 .toList()));
         result.add(buildEvent(
                 current,
@@ -174,6 +171,101 @@ public class GrowthEventService {
                 detailJson,
                 "대표 스냅샷 기준 장착 장비 변경 %d건".formatted(changes.size())
         ));
+    }
+
+    private void addCombatPowerContext(ObjectNode detail, DailySnapshotEntity current, DailySnapshotEntity previous) {
+        ObjectNode combatPower = objectMapper.createObjectNode();
+        Long from = previous.getCombatPower();
+        Long to = current.getCombatPower();
+        if (from == null || to == null) {
+            combatPower.put("status", "unavailable");
+            combatPower.put("message", "전투력 변화를 확인할 수 없음");
+        } else {
+            long delta = to - from;
+            combatPower.put("from", from);
+            combatPower.put("to", to);
+            combatPower.put("delta", delta);
+            if (delta == 0) {
+                combatPower.put("status", "unchanged");
+                combatPower.put("message", "전투력 변화 없음");
+            } else if (sameOtherGrowthMetrics(current, previous)) {
+                combatPower.put("status", "estimated");
+                combatPower.put("estimatedEquipmentContribution", delta);
+                combatPower.put("message", "다른 대표 성장 지표 변화가 없어 장비 변경과 함께 기록된 전투력 변화로 추정");
+            } else {
+                combatPower.put("status", "accompanied");
+                combatPower.put("message", "장비 변경과 함께 기록된 전투력 변화");
+            }
+        }
+        detail.set("combatPower", combatPower);
+    }
+
+    private boolean sameOtherGrowthMetrics(DailySnapshotEntity current, DailySnapshotEntity previous) {
+        return current.getLevel() == previous.getLevel()
+                && java.util.Objects.equals(current.getUnionLevel(), previous.getUnionLevel())
+                && java.util.Objects.equals(current.getUnionArtifactLevel(), previous.getUnionArtifactLevel())
+                && java.util.Objects.equals(current.getHexaMatrixLevelSum(), previous.getHexaMatrixLevelSum());
+    }
+
+    private ObjectNode comparisonNode(ItemReplacementChange change, JsonNode previousRaw, JsonNode currentRaw) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("part", change.part());
+        node.put("slot", change.slot());
+        node.put("previousItemName", change.previousItemName());
+        node.put("currentItemName", change.currentItemName());
+        node.set("previous", itemComparison(previousRaw, change.part(), change.slot()));
+        node.set("current", itemComparison(currentRaw, change.part(), change.slot()));
+        return node;
+    }
+
+    private ObjectNode itemComparison(JsonNode raw, String part, String slot) {
+        ObjectNode result = objectMapper.createObjectNode();
+        JsonNode item = findActiveItem(raw, part, slot);
+        if (item == null) {
+            result.put("available", false);
+            return result;
+        }
+        result.put("available", true);
+        copyIfPresent(result, item, "item_name", "name");
+        copyIfPresent(result, item, "item_starforce", "starforce");
+        copyIfPresent(result, item, "item_potential_option_grade", "potentialGrade");
+        copyIfPresent(result, item, "item_additional_potential_option_grade", "additionalPotentialGrade");
+        copyObjectIfPresent(result, item, "item_total_option", "totalOptions");
+        copyObjectIfPresent(result, item, "item_base_option", "baseOptions");
+        copyObjectIfPresent(result, item, "item_add_option", "additionalOptions");
+        copyObjectIfPresent(result, item, "item_etc_option", "etcOptions");
+        copyObjectIfPresent(result, item, "item_starforce_option", "starforceOptions");
+        copyPotentialOptions(result, item, "item_potential_option_", "potentialOptions");
+        copyPotentialOptions(result, item, "item_additional_potential_option_", "additionalPotentialOptions");
+        return result;
+    }
+
+    private JsonNode findActiveItem(JsonNode raw, String part, String slot) {
+        if (raw == null || !raw.isObject() || !raw.path("item_equipment").isArray()) return null;
+        for (JsonNode item : raw.path("item_equipment")) {
+            if (part.equals(normalizeRequiredText(item.get("item_equipment_part")))
+                    && slot.equals(normalizeRequiredText(item.get("item_equipment_slot")))) return item;
+        }
+        return null;
+    }
+
+    private void copyIfPresent(ObjectNode target, JsonNode source, String sourceKey, String targetKey) {
+        JsonNode value = source.get(sourceKey);
+        if (value != null && !value.isNull() && !value.asText().isBlank()) target.put(targetKey, value.asText());
+    }
+
+    private void copyObjectIfPresent(ObjectNode target, JsonNode source, String sourceKey, String targetKey) {
+        JsonNode value = source.get(sourceKey);
+        if (value != null && value.isObject() && value.size() > 0) target.set(targetKey, value.deepCopy());
+    }
+
+    private void copyPotentialOptions(ObjectNode target, JsonNode source, String prefix, String targetKey) {
+        var values = new ArrayList<String>();
+        for (int index = 1; index <= 3; index++) {
+            String value = normalizeRequiredText(source.get(prefix + index));
+            if (value != null) values.add(value);
+        }
+        if (!values.isEmpty()) target.set(targetKey, objectMapper.valueToTree(values));
     }
 
     private void addCombatPowerEvent(List<GrowthEventLogEntity> result, DailySnapshotEntity current, DailySnapshotEntity previous) {

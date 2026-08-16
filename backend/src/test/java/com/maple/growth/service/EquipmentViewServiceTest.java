@@ -62,6 +62,21 @@ class EquipmentViewServiceTest {
     }
 
     @Test
+    void emitsCurrentStateCandidateWithAnObservedReason() throws Exception {
+        DailySnapshotEntity snapshot = snapshot(objectMapper.readTree("""
+                {"item_equipment": [
+                  {"item_equipment_part":"무기","item_equipment_slot":"무기","item_name":"검","item_starforce":"0"}
+                ]}
+                """));
+
+        var result = service.fromSnapshot(snapshot);
+
+        assertThat(result.upgradeCandidates()).singleElement()
+                .extracting(candidate -> candidate.category(), candidate -> candidate.reason())
+                .containsExactly("스타포스", "현재 스타포스가 0이라 우선 검토 후보입니다.");
+    }
+
+    @Test
     void keepsTheFirstRowWhenAnActiveSlotIsDuplicated() throws Exception {
         DailySnapshotEntity snapshot = snapshot(objectMapper.readTree("""
                 {"item_equipment": [

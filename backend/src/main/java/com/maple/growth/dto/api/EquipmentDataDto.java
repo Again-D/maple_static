@@ -6,6 +6,10 @@ public record EquipmentDataDto(
         List<EquipmentItemDto> items,
         String snapshotDate,
         String capturedAt,
-        boolean available
+        boolean available,
+        List<EquipmentUpgradeCandidateDto> upgradeCandidates
 ) {
+    public EquipmentDataDto(List<EquipmentItemDto> items, String snapshotDate, String capturedAt, boolean available) {
+        this(items, snapshotDate, capturedAt, available, List.of());
+    }
 }
