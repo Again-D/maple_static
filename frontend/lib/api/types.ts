@@ -113,6 +113,35 @@ export type Timeline = {
   nextCursor: string | null;
 };
 
+export type EquipmentItem = {
+  id: string;
+  part: string;
+  slot: string;
+  name: string;
+  iconUrl: string | null;
+  shapeIconUrl: string | null;
+  description: string | null;
+  gender: string | null;
+  equipmentLevel: string | null;
+  starforce: string | null;
+  potentialGrade: string | null;
+  additionalPotentialGrade: string | null;
+  totalOptions: Record<string, string>;
+  baseOptions: Record<string, string>;
+  additionalOptions: Record<string, string>;
+  etcOptions: Record<string, string>;
+  starforceOptions: Record<string, string>;
+  potentialOptions: string[];
+  additionalPotentialOptions: string[];
+};
+
+export type EquipmentData = {
+  items: EquipmentItem[];
+  snapshotDate: string | null;
+  capturedAt: string | null;
+  available: boolean;
+};
+
 export type CharacterLookupData = {
   profile: CharacterProfile;
   latestSnapshot: SnapshotSummary | null;
@@ -126,6 +155,7 @@ export type DashboardData = {
   summary: GrowthSummary;
   chart: GrowthHistory;
   timeline: Timeline;
+  equipment?: EquipmentData;
 };
 
 export type RefreshData = {

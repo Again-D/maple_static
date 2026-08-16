@@ -5,13 +5,14 @@ import { exceedsImageSizeLimit, isImageRequestRateLimited } from "../../../lib/c
 
 const NEXON_IMAGE_HOST = "open.api.nexon.com";
 const NEXON_IMAGE_PATH_PREFIX = "/static/maplestory/character/look/";
+const NEXON_ITEM_IMAGE_PATH_PREFIX = "/static/maplestory/item/icon/";
 const NEXON_IMAGE_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36";
 const IMAGE_PROXY_VERSION = "1";
 
 function isAllowedImageUrl(url: URL) {
   return url.protocol === "https:"
     && url.hostname === NEXON_IMAGE_HOST
-    && url.pathname.startsWith(NEXON_IMAGE_PATH_PREFIX);
+    && (url.pathname.startsWith(NEXON_IMAGE_PATH_PREFIX) || url.pathname.startsWith(NEXON_ITEM_IMAGE_PATH_PREFIX));
 }
 
 function fetchNexonImage(imageUrl: URL) {

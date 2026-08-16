@@ -85,6 +85,32 @@ const sampleData: DashboardData = {
     ],
     hasMore: false,
     nextCursor: null
+  },
+  equipment: {
+    available: true,
+    snapshotDate: "2026-08-02",
+    capturedAt: "2026-08-02T04:00:12+09:00",
+    items: [{
+      id: "무기:무기",
+      part: "무기",
+      slot: "무기",
+      name: "에테르넬 스태프",
+      iconUrl: "/staff.png",
+      shapeIconUrl: null,
+      description: "강력한 스태프",
+      gender: null,
+      equipmentLevel: "250",
+      starforce: "22",
+      potentialGrade: "레전드리",
+      additionalPotentialGrade: null,
+      totalOptions: {},
+      baseOptions: { magic_power: "250" },
+      additionalOptions: {},
+      etcOptions: {},
+      starforceOptions: {},
+      potentialOptions: ["마력 12%"],
+      additionalPotentialOptions: []
+    }]
   }
 };
 
@@ -148,6 +174,9 @@ describe("dashboard page", () => {
     assert.match(html, /data-testid="growth-range-30d"/);
     assert.match(html, /data-testid="growth-metric-hexa-sum"/);
     assert.match(html, /aria-pressed="true"/);
+    assert.match(html, /현재 장비/);
+    assert.match(html, /에테르넬 스태프/);
+    assert.match(html, /equipment\/%EB%AC%B4%EA%B8%B0%3A%EB%AC%B4%EA%B8%B0/);
   });
 
   it("renders grouped replacement details for ITEM_REPLACED events", () => {
