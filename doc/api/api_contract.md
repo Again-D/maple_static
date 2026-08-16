@@ -265,6 +265,12 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
       "events": [],
       "hasMore": false
     },
+    "equipment": {
+      "available": true,
+      "snapshotDate": "2026-08-02",
+      "capturedAt": "2026-08-02T04:00:12+09:00",
+      "items": []
+    },
     "syncState": {}
   },
   "meta": {
@@ -273,6 +279,8 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
   }
 }
 ```
+
+`equipment.items` contains normalized active non-cash equipment from the latest successful snapshot. Raw Nexon equipment JSON is not exposed. Optional item detail groups are omitted or empty when the source value is unavailable; the frontend must not infer zero values.
 
 데이터 부족 응답도 HTTP 200으로 반환한다.
 이 경우 `summary.hasEnoughSnapshots`는 `false`, `chart.points`는 가능한 만큼만 포함하고, `timeline.events`는 빈 배열일 수 있다.

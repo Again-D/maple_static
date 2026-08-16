@@ -1,5 +1,6 @@
 import { CombatPowerChart } from "./CombatPowerChart";
 import { EventTimeline } from "./EventTimeline";
+import { EquipmentSection } from "./EquipmentSection";
 import { ProfileHeader } from "./ProfileHeader";
 import { StateMessage } from "./StateMessage";
 import { SummaryCards } from "./SummaryCards";
@@ -110,6 +111,7 @@ export function CharacterDashboardView({
       <ProfileHeader profile={data.profile} latestSnapshot={data.latestSnapshot} />
       <SyncStatus syncState={data.syncState} onRefresh={onRefresh} refreshing={refreshing} />
       <SummaryCards summary={data.summary} />
+      <EquipmentSection name={name} equipment={data.equipment} />
       <CombatPowerChart
         chart={data.chart}
         hasEnoughSnapshots={hasEnoughSnapshots}

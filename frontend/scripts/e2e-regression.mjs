@@ -66,7 +66,33 @@ const dashboard = {
       }
     ]
   },
-  timeline: { events: [], hasMore: false, nextCursor: null }
+  timeline: { events: [], hasMore: false, nextCursor: null },
+  equipment: {
+    available: true,
+    snapshotDate: "2026-08-12",
+    capturedAt: "2026-08-12T00:00:00Z",
+    items: [{
+      id: "무기:무기",
+      part: "무기",
+      slot: "무기",
+      name: "에테르넬 스태프",
+      iconUrl: null,
+      shapeIconUrl: null,
+      description: "E2E fixture",
+      gender: null,
+      equipmentLevel: "250",
+      starforce: "22",
+      potentialGrade: "레전드리",
+      additionalPotentialGrade: null,
+      totalOptions: {},
+      baseOptions: { magic_power: "250" },
+      additionalOptions: {},
+      etcOptions: {},
+      starforceOptions: {},
+      potentialOptions: ["마력 12%"],
+      additionalPotentialOptions: []
+    }]
+  }
 };
 
 function response(data) {
@@ -184,6 +210,13 @@ async function main() {
       throw error;
     }
     expectText(await runBrowser(["read"]), "Test Hero", "Search must navigate to the character dashboard");
+    expectText(await runBrowser(["read"]), "현재 장비", "Dashboard must show current equipment");
+    await runBrowser(["click", 'a[href*="/equipment/"]']);
+    await runBrowser(["wait", "--url", "**/equipment/**"]);
+    await runBrowser(["wait", "--text", "기본 옵션"]);
+    expectText(await runBrowser(["read"]), "잠재능력", "Equipment detail must show populated detail groups");
+    await runBrowser(["click", "a.back-link"]);
+    await runBrowser(["wait", "--text", "현재 장비"]);
     await runBrowser(["set", "viewport", "1280", "720"]);
     await runBrowser([
       "wait",
