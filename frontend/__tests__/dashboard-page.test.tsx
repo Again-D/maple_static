@@ -109,8 +109,9 @@ const sampleData: DashboardData = {
       etcOptions: {},
       starforceOptions: {},
       potentialOptions: ["마력 12%"],
-      additionalPotentialOptions: []
-    }]
+    additionalPotentialOptions: []
+    }],
+    upgradeCandidates: [{ itemId: "무기:무기", itemName: "에테르넬 스태프", part: "무기", slot: "무기", category: "스타포스", reason: "현재 스타포스가 0이라 우선 검토 후보입니다." }]
   }
 };
 
@@ -177,6 +178,8 @@ describe("dashboard page", () => {
     assert.match(html, /현재 장비/);
     assert.match(html, /에테르넬 스태프/);
     assert.match(html, /equipment\/%EB%AC%B4%EA%B8%B0%3A%EB%AC%B4%EA%B8%B0/);
+    assert.match(html, /우선 검토 장비/);
+    assert.match(html, /현재 스타포스가 0이라/);
   });
 
   it("renders grouped replacement details for ITEM_REPLACED events", () => {
@@ -192,9 +195,10 @@ describe("dashboard page", () => {
             title: "장비 2개 교체",
             description: "장비가 교체되었습니다.",
             detail: {
+              combatPower: { status: "estimated", message: "장비 변경과 함께 기록된 전투력 변화", delta: 200000, estimatedEquipmentContribution: 200000 },
               changes: [
-                { slot: "무기", previousItemName: "아케인 스태프", currentItemName: "에테르넬 스태프" },
-                { slot: "신발", previousItemName: "아케인 슈즈", currentItemName: "에테르넬 슈즈" }
+                { slot: "무기", previousItemName: "아케인 스태프", currentItemName: "에테르넬 스태프", previous: { starforce: "17" }, current: { starforce: "22" } },
+                { slot: "신발", previousItemName: "아케인 슈즈", currentItemName: "에테르넬 슈즈", previous: {}, current: {} }
               ]
             }
           }
@@ -222,6 +226,8 @@ describe("dashboard page", () => {
     assert.match(html, /에테르넬 스태프/);
     assert.match(html, /신발: 아케인 슈즈/);
     assert.match(html, /에테르넬 슈즈/);
+    assert.match(html, /추정 기여/);
+    assert.match(html, /변경 전/);
   });
 
   it("renders the selector-driven chart controls and selected metric values", () => {

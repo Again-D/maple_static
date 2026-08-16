@@ -66,7 +66,22 @@ const dashboard = {
       }
     ]
   },
-  timeline: { events: [], hasMore: false, nextCursor: null },
+  timeline: {
+    events: [{
+      id: 1,
+      eventDate: "2026-08-12",
+      eventType: "ITEM_REPLACED",
+      importanceLevel: 2,
+      title: "장비 1개 교체",
+      description: "장비 교체가 감지되었습니다.",
+      detail: {
+        combatPower: { status: "estimated", message: "장비 변경과 함께 기록된 전투력 변화", delta: 200000, estimatedEquipmentContribution: 200000 },
+        changes: [{ slot: "무기", previousItemName: "이전 무기", currentItemName: "에테르넬 스태프", previous: { starforce: "17" }, current: { starforce: "22" } }]
+      }
+    }],
+    hasMore: false,
+    nextCursor: null
+  },
   equipment: {
     available: true,
     snapshotDate: "2026-08-12",
@@ -217,6 +232,7 @@ async function main() {
     expectText(await runBrowser(["read"]), "잠재능력", "Equipment detail must show populated detail groups");
     await runBrowser(["click", "a.back-link"]);
     await runBrowser(["wait", "--text", "현재 장비"]);
+    expectText(await runBrowser(["read"]), "추정 기여", "Replacement events must show contribution context");
     await runBrowser(["set", "viewport", "1280", "720"]);
     await runBrowser([
       "wait",

@@ -269,7 +269,8 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
       "available": true,
       "snapshotDate": "2026-08-02",
       "capturedAt": "2026-08-02T04:00:12+09:00",
-      "items": []
+      "items": [],
+      "upgradeCandidates": []
     },
     "syncState": {}
   },
@@ -280,7 +281,7 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
 }
 ```
 
-`equipment.items` contains normalized active non-cash equipment from the latest successful snapshot. Raw Nexon equipment JSON is not exposed. Optional item detail groups are omitted or empty when the source value is unavailable; the frontend must not infer zero values.
+`equipment.items` contains normalized active non-cash equipment from the latest successful snapshot. `equipment.upgradeCandidates` contains only current-state candidates with an observed reason. Raw Nexon equipment JSON is not exposed. Optional item detail groups are omitted or empty when the source value is unavailable; the frontend must not infer zero values.
 
 데이터 부족 응답도 HTTP 200으로 반환한다.
 이 경우 `summary.hasEnoughSnapshots`는 `false`, `chart.points`는 가능한 만큼만 포함하고, `timeline.events`는 빈 배열일 수 있다.
@@ -368,14 +369,34 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
 
 ### 6.5. 수동 새로고침
 
-`ITEM_REPLACED` 이벤트의 `detail`은 다음 형태를 사용한다. 여러 슬롯 변경도 이벤트 한 건의 `changes` 배열로 묶으며, preset/옵션/스타포스 비교 결과는 포함하지 않는다.
+`ITEM_REPLACED` 이벤트의 `detail`은 다음 형태를 사용한다. 여러 슬롯 변경도 이벤트 한 건의 `changes` 배열로 묶으며, 같은 스냅샷 쌍의 전투력 문맥과 값이 있는 장비 전후 비교를 함께 포함한다. 추정 기여도는 정확한 인과 결과가 아니라 추정 상태로 표시한다.
 
 ```json
 {
   "changeCount": 2,
+  "combatPower": {
+    "status": "estimated",
+    "from": 6000000,
+    "to": 7420500,
+    "delta": 1420500,
+    "estimatedEquipmentContribution": 1420500,
+    "message": "다른 대표 성장 지표 변화가 없어 장비 변경과 함께 기록된 전투력 변화로 추정"
+  },
   "changes": [
-    { "slot": "무기", "previousItemName": "아케인 스태프", "currentItemName": "에테르넬 스태프" },
-    { "slot": "신발", "previousItemName": "아케인 슈즈", "currentItemName": "에테르넬 슈즈" }
+    {
+      "slot": "무기",
+      "previousItemName": "아케인 스태프",
+      "currentItemName": "에테르넬 스태프",
+      "previous": { "starforce": "17", "potentialGrade": "에픽" },
+      "current": { "starforce": "22", "potentialGrade": "레전드리" }
+    },
+    {
+      "slot": "신발",
+      "previousItemName": "아케인 슈즈",
+      "currentItemName": "에테르넬 슈즈",
+      "previous": { "available": true },
+      "current": { "available": true }
+    }
   ]
 }
 ```
