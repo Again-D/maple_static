@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maple.growth.entity.DailySnapshotEntity;
+import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
 class BossDamageAnalysisServiceTest {
@@ -25,10 +26,11 @@ class BossDamageAnalysisServiceTest {
         assertThat(result.catalogVersion()).isEqualTo("2026.08.25-assumption-1");
         assertThat(result.catalogReviewedAt()).isEqualTo("2026-08-25");
         assertThat(result.catalogSource()).contains("assumptions");
-        assertThat(result.bossDamagePercent()).isEqualTo(300);
-        assertThat(result.ignoreDefensePercent()).isEqualTo(90);
+        assertThat(result.bossDamagePercent()).isEqualByComparingTo("300");
+        assertThat(result.ignoreDefensePercent()).isEqualByComparingTo("90");
         assertThat(result.bosses()).isNotEmpty();
-        assertThat(result.bosses().stream().allMatch(boss -> boss.effectiveDamageMultiplier() != null)).isTrue();
+        assertThat(result.bosses()).filteredOn(boss -> boss.defenseRate().compareTo(new BigDecimal("300")) == 0)
+                .allSatisfy(boss -> assertThat(boss.effectiveDamageMultiplier()).isEqualByComparingTo("2.800"));
     }
 
     @Test
@@ -61,5 +63,38 @@ class BossDamageAnalysisServiceTest {
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> BossDamageAnalysisService.validateCatalog(root, root.path("bosses")))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void preservesFormattedDecimalPercentages() throws Exception {
+        DailySnapshotEntity snapshot = new DailySnapshotEntity();
+        snapshot.setRawStatJson(new ObjectMapper().readTree("""
+                {"final_stat":[
+                  {"stat_name":"보스 몬스터 데미지","stat_value":"300.5%"},
+                  {"stat_name":"방어율 무시","stat_value":"90.25"}
+                ]}
+                """));
+
+        var result = service.analyze(snapshot);
+
+        assertThat(result.available()).isTrue();
+        assertThat(result.bossDamagePercent()).isEqualByComparingTo("300.5");
+        assertThat(result.ignoreDefensePercent()).isEqualByComparingTo("90.25");
+    }
+
+    @Test
+    void marksAnalysisUnavailableWhenOneRequiredStatIsMalformed() throws Exception {
+        DailySnapshotEntity snapshot = new DailySnapshotEntity();
+        snapshot.setRawStatJson(new ObjectMapper().readTree("""
+                {"final_stat":[
+                  {"stat_name":"보스 몬스터 데미지","stat_value":"not-a-number"},
+                  {"stat_name":"방어율 무시","stat_value":"90"}
+                ]}
+                """));
+
+        var result = service.analyze(snapshot);
+
+        assertThat(result.available()).isFalse();
+        assertThat(result.bosses()).allMatch(boss -> boss.effectiveDamageMultiplier() == null);
     }
 }

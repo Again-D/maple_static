@@ -10,22 +10,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.maple.growth.dto.api.BossDamageAnalysisDto;
 import com.maple.growth.dto.api.BossMultiplierDto;
 import com.maple.growth.entity.DailySnapshotEntity;
-import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
 public class BossDamageAnalysisService {
 
     private static final String LIMITATIONS = "Nexon 최종 스탯과 버전 고정 방어율 가정으로 계산한 참고용 배율입니다. 스킬, 최종 데미지, 크리티컬, 레벨 보정, 버프, 파티 효과, 페이즈·패턴, 실제 로테이션 DPS는 반영하지 않습니다.";
 
     private final ObjectMapper objectMapper;
+    private final Catalog catalog;
+
+    public BossDamageAnalysisService(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+        this.catalog = loadCatalog();
+    }
 
     public BossDamageAnalysisDto analyze(DailySnapshotEntity snapshot) {
-        Catalog catalog = loadCatalog();
-        Integer bossDamage = extractPercent(snapshot == null ? null : snapshot.getRawStatJson(), "보스 몬스터 데미지", "보스 공격력", "boss damage");
-        Integer ignoreDefense = extractPercent(snapshot == null ? null : snapshot.getRawStatJson(), "방어율 무시", "방어율무시", "ignore defense");
+        BigDecimal bossDamage = extractPercent(snapshot == null ? null : snapshot.getRawStatJson(), "보스 몬스터 데미지", "보스 공격력", "boss damage");
+        BigDecimal ignoreDefense = extractPercent(snapshot == null ? null : snapshot.getRawStatJson(), "방어율 무시", "방어율무시", "ignore defense");
         boolean available = bossDamage != null && ignoreDefense != null;
         List<BossMultiplierDto> bosses = catalog.bosses().stream().map(boss -> {
             if (!available) {
@@ -33,9 +36,9 @@ public class BossDamageAnalysisService {
             }
             BigDecimal defenseFactor = BigDecimal.ONE.subtract(
                     boss.defenseRate().divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)
-                            .multiply(BigDecimal.ONE.subtract(BigDecimal.valueOf(ignoreDefense).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)))
+                            .multiply(BigDecimal.ONE.subtract(ignoreDefense.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)))
             ).max(BigDecimal.ZERO);
-            BigDecimal multiplier = defenseFactor.multiply(BigDecimal.ONE.add(BigDecimal.valueOf(bossDamage).divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)))
+            BigDecimal multiplier = defenseFactor.multiply(BigDecimal.ONE.add(bossDamage.divide(BigDecimal.valueOf(100), 8, RoundingMode.HALF_UP)))
                     .setScale(3, RoundingMode.HALF_UP);
             return new BossMultiplierDto(boss.id(), boss.name(), boss.difficulty(), boss.defenseRate(), multiplier, true, null);
         }).toList();
@@ -76,14 +79,14 @@ public class BossDamageAnalysisService {
         return value;
     }
 
-    private static Integer extractPercent(JsonNode node, String... candidates) {
+    private static BigDecimal extractPercent(JsonNode node, String... candidates) {
         if (node == null || !node.path("final_stat").isArray()) return null;
         for (JsonNode item : node.path("final_stat")) {
             String name = item.path("stat_name").asText(item.path("name").asText(""));
             for (String candidate : candidates) {
                 if (name.toLowerCase().contains(candidate.toLowerCase())) {
                     String raw = item.path("stat_value").asText(item.path("value").asText(""));
-                    try { return new BigDecimal(raw.replace(",", "").replace("%", "")).intValue(); } catch (NumberFormatException ignored) { return null; }
+                    try { return new BigDecimal(raw.replace(",", "").replace("%", "")); } catch (NumberFormatException ignored) { return null; }
                 }
             }
         }

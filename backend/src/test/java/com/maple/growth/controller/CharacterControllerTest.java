@@ -79,7 +79,7 @@ class CharacterControllerTest {
         when(kstClock.now()).thenReturn(OffsetDateTime.ofInstant(Instant.parse("2026-08-02T04:10:00Z"), ZoneOffset.ofHours(9)));
         when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
         when(characterLookupService.bossDamageAnalysis(anyString())).thenReturn(new BossDamageAnalysisDto(
-                "2026.08.25-assumption-1", "2026-08-25", "local assumption", 300, 90, true, "참고용 배율", List.of(
+                "2026.08.25-assumption-1", "2026-08-25", "local assumption", new BigDecimal("300"), new BigDecimal("90"), true, "참고용 배율", List.of(
                 new BossMultiplierDto("chaos-vellum", "카오스 벨룸", "Chaos", new BigDecimal("300"), new BigDecimal("2.800"), true, null)
         )));
 
@@ -307,6 +307,18 @@ class CharacterControllerTest {
         when(characterLookupService.lookupOrRegister(anyString())).thenThrow(new NexonApiException(ApiErrorCode.CHARACTER_NOT_FOUND, "캐릭터를 찾을 수 없습니다.", false));
 
         mockMvc.perform(get("/api/v1/characters/missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value(ApiErrorCode.CHARACTER_NOT_FOUND.name()))
+                .andExpect(jsonPath("$.error.retryable").value(false));
+    }
+
+    @Test
+    void bossAnalysisNotFoundUsesCommonErrorWrapper() throws Exception {
+        when(kstClock.now()).thenReturn(OffsetDateTime.ofInstant(Instant.parse("2026-08-02T04:10:00Z"), ZoneOffset.ofHours(9)));
+        when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
+        when(characterLookupService.bossDamageAnalysis(anyString())).thenThrow(new NexonApiException(ApiErrorCode.CHARACTER_NOT_FOUND, "캐릭터를 찾을 수 없습니다.", false));
+
+        mockMvc.perform(get("/api/v1/characters/missing/analytics/boss-damage"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value(ApiErrorCode.CHARACTER_NOT_FOUND.name()))
                 .andExpect(jsonPath("$.error.retryable").value(false));
