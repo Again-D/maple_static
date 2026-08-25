@@ -5,6 +5,7 @@ import {
   buildCharacterRoute,
   canSubmitSearch,
   fetchCharacterLookup,
+  fetchBossDamageAnalysis,
   fetchDashboard,
   fetchGrowthHistory,
   getApiBaseUrl,
@@ -188,6 +189,22 @@ describe("api client helpers", () => {
       assert.equal(result.data.points.length, 1);
       assert.equal(result.data.points[0].level, 250);
       assert.equal(result.meta.serverTime, "2026-08-15T04:10:00+09:00");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("fetches encoded boss damage analysis", async () => {
+    const originalFetch = globalThis.fetch;
+    const requests: string[] = [];
+    globalThis.fetch = (async (url: string | URL) => {
+      requests.push(String(url));
+      return new Response(JSON.stringify({ success: true, data: { catalogVersion: "v1", available: false, bosses: [], limitations: "참고용" }, meta: { serverTime: "now", timezone: "Asia/Seoul" } }), { status: 200 });
+    }) as typeof fetch;
+    try {
+      const result = await fetchBossDamageAnalysis("  아리엘  ");
+      assert.equal(result.success, true);
+      assert.equal(requests[0], "http://localhost:8080/api/v1/characters/%EC%95%84%EB%A6%AC%EC%97%98/analytics/boss-damage");
     } finally {
       globalThis.fetch = originalFetch;
     }

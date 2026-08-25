@@ -134,6 +134,7 @@ The first manual smoke path is:
 4. Confirm the app routes to `/character/[name]`.
 5. Confirm the dashboard renders either character data or a well-formed failure state.
 6. If Nexon or credentials are unavailable, confirm the dashboard shows the correct retryable or not-found state and keeps cached data visible when it exists.
+7. Open `/character/{name}/analytics` and confirm the versioned boss catalog, input stats, estimated multipliers, and limitations are visible without exposing raw Nexon JSON.
 
 Useful verification commands:
 

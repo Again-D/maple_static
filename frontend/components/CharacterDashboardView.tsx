@@ -7,6 +7,8 @@ import { SummaryCards } from "./SummaryCards";
 import { SyncStatus } from "./SyncStatus";
 import type { DashboardData, RangeOption, MetricOption } from "../lib/api/types";
 import Link from "next/link";
+import { CharacterShell } from "./CharacterShell";
+import { QuickOverview } from "./QuickOverview";
 
 type CharacterDashboardViewProps = {
   name: string;
@@ -63,12 +65,12 @@ export function CharacterDashboardView({
   chartError = null
 }: CharacterDashboardViewProps) {
   if (status === "loading") {
-    return <LoadingSkeleton name={name} />;
+    return <CharacterShell name={name} active="dashboard"><LoadingSkeleton name={name} /></CharacterShell>;
   }
 
   if (status === "not_found") {
     return (
-      <main className="shell">
+      <CharacterShell name={name} active="dashboard"><main className="shell">
         <section className="hero-card">
           <p className="eyebrow">Character Dashboard</p>
           <h1>{name}</h1>
@@ -77,13 +79,13 @@ export function CharacterDashboardView({
             다시 검색
           </Link>
         </section>
-      </main>
+      </main></CharacterShell>
     );
   }
 
   if (status === "error" || !data) {
     return (
-      <main className="shell">
+      <CharacterShell name={name} active="dashboard"><main className="shell">
         <section className="hero-card">
           <p className="eyebrow">Character Dashboard</p>
           <h1>{name}</h1>
@@ -92,14 +94,14 @@ export function CharacterDashboardView({
             다시 시도
           </button>
         </section>
-      </main>
+      </main></CharacterShell>
     );
   }
 
   const hasEnoughSnapshots = data.chart.hasEnoughSnapshots;
 
   return (
-    <main className="shell shell--dashboard">
+    <CharacterShell name={name} active="dashboard"><main className="shell shell--dashboard">
       <section className="hero-card hero-card--compact">
         <p className="eyebrow">Character Dashboard</p>
         <h1>{data.profile.name}</h1>
@@ -108,11 +110,9 @@ export function CharacterDashboardView({
 
       {banner ? <StateMessage tone="warning" title={banner.title} message={banner.message} actionLabel="기존 데이터 유지" /> : null}
 
-      <ProfileHeader profile={data.profile} latestSnapshot={data.latestSnapshot} />
-      <SyncStatus syncState={data.syncState} onRefresh={onRefresh} refreshing={refreshing} />
-      <SummaryCards summary={data.summary} />
-      <EquipmentSection name={name} equipment={data.equipment} />
-      <CombatPowerChart
+      <div className="dashboard-grid dashboard-grid--top">
+        <ProfileHeader profile={data.profile} latestSnapshot={data.latestSnapshot} />
+        <CombatPowerChart
         chart={data.chart}
         hasEnoughSnapshots={hasEnoughSnapshots}
         selectedRange={selectedRange}
@@ -121,8 +121,13 @@ export function CharacterDashboardView({
         onMetricChange={onMetricChange}
         chartLoading={chartLoading}
         chartError={chartError}
-      />
+        />
+        <QuickOverview snapshot={data.latestSnapshot} />
+      </div>
+      <SyncStatus syncState={data.syncState} onRefresh={onRefresh} refreshing={refreshing} />
+      <SummaryCards summary={data.summary} />
+      <div id="equipment"><EquipmentSection name={name} equipment={data.equipment} /></div>
       <EventTimeline timeline={data.timeline} hasEnoughSnapshots={data.summary.hasEnoughSnapshots} />
-    </main>
+    </main></CharacterShell>
   );
 }

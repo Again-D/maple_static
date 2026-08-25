@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 import com.maple.growth.dto.api.ApiErrorCode;
+import com.maple.growth.dto.api.BossDamageAnalysisDto;
+import com.maple.growth.dto.api.BossMultiplierDto;
 import com.maple.growth.dto.api.CharacterLookupResponseDto;
 import com.maple.growth.dto.api.CharacterProfileDto;
 import com.maple.growth.dto.api.ChartPointDto;
@@ -70,6 +72,25 @@ class CharacterControllerTest {
                 .andExpect(jsonPath("$.data.profile.name").value("Aries92"))
                 .andExpect(jsonPath("$.meta.timezone").value("Asia/Seoul"))
                 .andExpect(jsonPath("$.meta.serverTime").exists());
+    }
+
+    @Test
+    void bossAnalysisReturnsNormalizedCatalogAndMultiplierOnly() throws Exception {
+        when(kstClock.now()).thenReturn(OffsetDateTime.ofInstant(Instant.parse("2026-08-02T04:10:00Z"), ZoneOffset.ofHours(9)));
+        when(kstClock.zoneId()).thenReturn(ZoneId.of("Asia/Seoul"));
+        when(characterLookupService.bossDamageAnalysis(anyString())).thenReturn(new BossDamageAnalysisDto(
+                "2026.08.25-assumption-1", "2026-08-25", "local assumption", 300, 90, true, "참고용 배율", List.of(
+                new BossMultiplierDto("chaos-vellum", "카오스 벨룸", "Chaos", new BigDecimal("300"), new BigDecimal("2.800"), true, null)
+        )));
+
+        mockMvc.perform(get("/api/v1/characters/Aries92/analytics/boss-damage"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.catalogVersion").value("2026.08.25-assumption-1"))
+                .andExpect(jsonPath("$.data.catalogReviewedAt").value("2026-08-25"))
+                .andExpect(jsonPath("$.data.bossDamagePercent").value(300))
+                .andExpect(jsonPath("$.data.bosses[0].effectiveDamageMultiplier").value(2.8))
+                .andExpect(jsonPath("$.data.rawStatJson").doesNotExist())
+                .andExpect(jsonPath("$.meta.timezone").value("Asia/Seoul"));
     }
 
     @Test

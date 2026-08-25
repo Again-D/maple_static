@@ -1,0 +1,13 @@
+{
+  "version": "2026.08.25-assumption-1",
+  "reviewedAt": "2026-08-25",
+  "sourceReference": "MapleStory Open API stat labels; defense rates are product assumptions and require manual review",
+  "bosses": [
+    { "id": "normal-vellum", "name": "노멀 벨룸(가정)", "difficulty": "Normal", "defenseRate": 100 },
+    { "id": "chaos-vellum", "name": "카오스 벨룸", "difficulty": "Chaos", "defenseRate": 300 },
+    { "id": "hard-damien", "name": "하드 데미안", "difficulty": "Hard", "defenseRate": 300 },
+    { "id": "hard-lucid", "name": "하드 루시드", "difficulty": "Hard", "defenseRate": 300 },
+    { "id": "hard-will", "name": "하드 윌", "difficulty": "Hard", "defenseRate": 300 },
+    { "id": "black-mage", "name": "검은 마법사", "difficulty": "Hard", "defenseRate": 300 }
+  ]
+}

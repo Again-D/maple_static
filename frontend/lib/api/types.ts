@@ -7,6 +7,27 @@ export type ApiErrorCode =
   | "NEXON_API_UNAVAILABLE"
   | "INTERNAL_ERROR";
 
+export type BossMultiplier = {
+  bossId: string;
+  bossName: string;
+  difficulty: string;
+  defenseRate: number;
+  effectiveDamageMultiplier: number | null;
+  available: boolean;
+  unavailableReason: string | null;
+};
+
+export type BossDamageAnalysis = {
+  catalogVersion: string;
+  catalogReviewedAt: string;
+  catalogSource: string;
+  bossDamagePercent: number | null;
+  ignoreDefensePercent: number | null;
+  available: boolean;
+  limitations: string;
+  bosses: BossMultiplier[];
+};
+
 export type ApiMeta = {
   serverTime: string;
   timezone: string;

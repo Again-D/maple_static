@@ -134,6 +134,11 @@ public class SnapshotSyncService {
                 .orElseThrow(() -> new NexonApiException(ApiErrorCode.CHARACTER_NOT_FOUND, "캐릭터를 찾을 수 없습니다.", false));
     }
 
+    @Transactional(readOnly = true)
+    public DailySnapshotEntity latestSnapshot(CharacterEntity character) {
+        return dailySnapshotRepository.findFirstByCharacterOrderBySnapshotDateDescIdDesc(character).orElse(null);
+    }
+
     @Transactional
     public GrowthHistoryDto growthHistory(CharacterEntity character, String range, String metric, int rangeDays) {
         LocalDate endDate = kstClock.today();
