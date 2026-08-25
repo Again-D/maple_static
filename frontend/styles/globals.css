@@ -22,6 +22,38 @@ body {
   min-height: 100%;
 }
 
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: 190px minmax(0, 1fr); background: radial-gradient(circle at 75% 10%, rgba(67, 111, 181, .18), transparent 32%), #081322; }
+.side-nav { border-right: 1px solid rgba(151, 190, 232, .13); padding: 28px 14px; background: rgba(10, 22, 42, .72); }
+.brand-mark { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 42px; border-radius: 16px; color: #ffd36a; font-size: 28px; background: linear-gradient(145deg, #493f31, #be8431); box-shadow: 0 0 26px rgba(247, 187, 76, .28); }
+.side-nav nav { display: grid; gap: 8px; }
+.side-nav__link { display: flex; align-items: center; gap: 12px; padding: 12px 13px; border-radius: 12px; color: #98a9c1; text-decoration: none; font-size: 14px; }
+.side-nav__link:hover, .side-nav__link.is-active { color: #e9fbff; background: linear-gradient(90deg, rgba(54, 210, 222, .22), rgba(54, 210, 222, .06)); box-shadow: inset 3px 0 #45e3e3; }
+.side-nav__link:focus-visible, .brand-mark:focus-visible { outline: 2px solid #65e8ef; outline-offset: 3px; }
+.side-nav__link--disabled { opacity: .58; cursor: default; }
+.app-shell__content { min-width: 0; }
+.dashboard-topbar { display: flex; justify-content: space-between; align-items: center; max-width: 1440px; margin: 0 auto; padding: 28px 42px 0; }
+.dashboard-topbar .eyebrow { margin: 0; color: #edf3ff; font-size: 22px; letter-spacing: -.03em; text-transform: none; }
+.dashboard-topbar__character { margin: 6px 0 0; color: #8ea0ba; font-size: 13px; }
+.dashboard-topbar__status { color: #aab8cb; font-size: 13px; }
+.status-dot { display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #55dd86; box-shadow: 0 0 12px #55dd86; }
+.dashboard-grid--top { display: grid; grid-template-columns: minmax(250px, .9fr) minmax(390px, 1.5fr) minmax(200px, .75fr); gap: 16px; align-items: stretch; }
+.dashboard-grid--top > * { min-width: 0; }
+.quick-overview { display: grid; gap: 10px; }
+.quick-overview__card { display: grid; gap: 6px; align-content: center; padding: 16px 18px; min-height: 86px; border: 1px solid rgba(125, 178, 229, .25); border-radius: 14px; background: linear-gradient(145deg, rgba(51, 77, 115, .75), rgba(20, 35, 62, .8)); box-shadow: inset 0 1px rgba(255,255,255,.06); }
+.quick-overview__card span { color: #a7b5ca; font-size: 13px; }
+.quick-overview__card strong { color: #f5f8ff; font-size: 24px; letter-spacing: -.04em; }
+.boss-analysis__heading { display: flex; justify-content: space-between; gap: 16px; align-items: start; }
+.boss-analysis__heading h1 { margin: 0; }
+.catalog-badge { color: #8fa6c6; font-size: 11px; }
+.boss-analysis__inputs { display: flex; gap: 24px; margin: 22px 0; color: #a9bad2; }
+.boss-analysis__inputs strong { display: block; margin-top: 3px; color: #f7fbff; font-size: 24px; }
+.boss-table { display: grid; gap: 7px; }
+.boss-table__row { display: grid; grid-template-columns: 1.5fr .7fr 1fr; align-items: center; gap: 12px; padding: 13px 14px; border: 1px solid rgba(128, 167, 213, .14); border-radius: 10px; color: #c7d4e8; background: rgba(20, 37, 64, .62); }
+.boss-table__row strong { color: #f2f7ff; }
+.boss-table__row small { display: block; margin-top: 3px; color: #8295b2; }
+.boss-table__header { border: 0; padding-block: 0; color: #8295b2; background: transparent; font-size: 12px; }
+.panel__note { color: #8396b1; font-size: 12px; line-height: 1.6; }
+
 body {
   margin: 0;
   font-family: "Avenir Next", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
@@ -650,6 +682,17 @@ h1 {
 .timeline__comparison-grid dd { margin: 0; text-align: right; }
 
 @media (max-width: 640px) {
+  .app-shell { display: block; }
+  .side-nav { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 10px 12px; overflow-x: auto; }
+  .brand-mark { flex: 0 0 auto; width: 36px; height: 36px; margin: 0; border-radius: 11px; font-size: 20px; }
+  .side-nav nav { display: flex; gap: 4px; }
+  .side-nav__link { white-space: nowrap; padding: 9px 10px; }
+  .side-nav__link span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .dashboard-topbar { padding: 18px 14px 0; }
+  .dashboard-topbar .eyebrow { font-size: 18px; }
+  .dashboard-grid--top { grid-template-columns: 1fr; }
+  .boss-analysis__inputs { gap: 14px; }
+  .boss-table__row { grid-template-columns: 1.35fr .7fr .9fr; font-size: 13px; }
   .timeline__comparison-grid { grid-template-columns: 1fr; }
 }
 

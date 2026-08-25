@@ -110,6 +110,25 @@ const dashboard = {
   }
 };
 
+const bossAnalysis = {
+  catalogVersion: "2026.08.25-assumption-1",
+  catalogReviewedAt: "2026-08-25",
+  catalogSource: "E2E fixture",
+  bossDamagePercent: 300,
+  ignoreDefensePercent: 90,
+  available: true,
+  limitations: "스킬, 최종 데미지, 크리티컬, 레벨 보정은 반영하지 않습니다.",
+  bosses: [{ bossId: "chaos-vellum", bossName: "카오스 벨룸", difficulty: "Chaos", defenseRate: 300, effectiveDamageMultiplier: 2.8, available: true, unavailableReason: null }]
+};
+
+const bossAnalysisUnavailable = {
+  ...bossAnalysis,
+  bossDamagePercent: null,
+  ignoreDefensePercent: null,
+  available: false,
+  bosses: [{ ...bossAnalysis.bosses[0], effectiveDamageMultiplier: null, available: false, unavailableReason: "필수 스탯 없음" }]
+};
+
 function response(data) {
   return JSON.stringify({ success: true, data, meta });
 }
@@ -154,7 +173,7 @@ async function waitForServer() {
 async function main() {
   const apiServer = createServer((request, responseStream) => {
     const requestUrl = new URL(request.url, "http://127.0.0.1");
-    const match = requestUrl.pathname.match(/^\/api\/v1\/characters\/([^/]+)\/(dashboard|growth-history|refresh)$/);
+    const match = requestUrl.pathname.match(/^\/api\/v1\/characters\/([^/]+)\/(dashboard|growth-history|refresh|analytics\/boss-damage)$/);
 
     responseStream.setHeader("Access-Control-Allow-Origin", frontendUrl);
     responseStream.setHeader("Content-Type", "application/json");
@@ -175,6 +194,22 @@ async function main() {
     }
     if (operation === "dashboard") {
       responseStream.end(response(dashboard));
+      return;
+    }
+    if (operation === "analytics/boss-damage") {
+      if (name === "analytics-unavailable") {
+        responseStream.end(response(bossAnalysisUnavailable));
+        return;
+      }
+      if (name === "analytics-unknown") {
+        responseStream.end(failure("CHARACTER_NOT_FOUND", "캐릭터가 존재하지 않습니다.", false));
+        return;
+      }
+      if (name === "analytics-failed") {
+        responseStream.end(failure("NEXON_API_UNAVAILABLE", "Nexon API를 사용할 수 없습니다.", true));
+        return;
+      }
+      responseStream.end(response(bossAnalysis));
       return;
     }
     if (operation === "growth-history") {
@@ -233,6 +268,23 @@ async function main() {
     await runBrowser(["click", "a.back-link"]);
     await runBrowser(["wait", "--text", "현재 장비"]);
     expectText(await runBrowser(["read"]), "추정 기여", "Replacement events must show contribution context");
+    await runBrowser(["click", 'a[href*="/analytics"]']);
+    await runBrowser(["wait", "--url", "**/analytics"]);
+    await runBrowser(["wait", "--text", "보스별 데미지 배율"]);
+    expectText(await runBrowser(["read"]), "2.800x", "Analytics must show the normalized boss multiplier");
+    expectText(await runBrowser(["read"]), "Catalog 2026.08.25-assumption-1", "Analytics must show catalog version");
+    await runBrowser(["open", `${frontendUrl}/character/analytics-unavailable/analytics`]);
+    await runBrowser(["wait", "--text", "현재 스탯으로 계산할 수 없습니다."]);
+    expectText(await runBrowser(["read"]), "보스 데미지 -", "Unavailable analytics must not display a numeric input");
+    if ((await runBrowser(["read"])).includes("2.800x")) throw new Error("Unavailable analytics must not display a multiplier");
+    await runBrowser(["open", `${frontendUrl}/character/analytics-unknown/analytics`]);
+    await runBrowser(["wait", "--text", "캐릭터를 찾을 수 없습니다."]);
+    await runBrowser(["open", `${frontendUrl}/character/analytics-failed/analytics`]);
+    await runBrowser(["wait", "--text", "분석을 불러오지 못했습니다."]);
+    await runBrowser(["click", "button.refresh-button--inline"]);
+    await runBrowser(["wait", "--text", "분석을 불러오지 못했습니다."]);
+    await runBrowser(["open", `${frontendUrl}/character/Test%20Hero`]);
+    await runBrowser(["wait", "--text", "현재 장비"]);
     await runBrowser(["set", "viewport", "1280", "720"]);
     await runBrowser([
       "wait",

@@ -6,6 +6,7 @@ import com.maple.growth.dto.api.DashboardResponseDto;
 import com.maple.growth.dto.api.EventsResponseDto;
 import com.maple.growth.dto.api.GrowthHistoryDto;
 import com.maple.growth.dto.api.RefreshResponseDto;
+import com.maple.growth.dto.api.BossDamageAnalysisDto;
 import com.maple.growth.service.CharacterLookupService;
 import com.maple.growth.service.KstClock;
 import jakarta.validation.constraints.Max;
@@ -78,6 +79,11 @@ public class CharacterController {
     ) {
         var character = characterLookupService.requireExisting(name);
         return ApiResponse.success(characterLookupService.events(character, limit), kstClock.now(), kstClock.zoneId().getId());
+    }
+
+    @GetMapping("/{name}/analytics/boss-damage")
+    public ApiResponse<BossDamageAnalysisDto> getBossDamageAnalysis(@PathVariable String name) {
+        return ApiResponse.success(characterLookupService.bossDamageAnalysis(name), kstClock.now(), kstClock.zoneId().getId());
     }
 
     @PostMapping("/{name}/refresh")

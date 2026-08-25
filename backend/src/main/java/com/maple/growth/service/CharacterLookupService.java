@@ -5,6 +5,7 @@ import com.maple.growth.dto.api.DashboardResponseDto;
 import com.maple.growth.dto.api.EventsResponseDto;
 import com.maple.growth.dto.api.GrowthHistoryDto;
 import com.maple.growth.dto.api.RefreshResponseDto;
+import com.maple.growth.dto.api.BossDamageAnalysisDto;
 import com.maple.growth.entity.CharacterEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class CharacterLookupService {
 
     private final SnapshotSyncService snapshotSyncService;
+    private final BossDamageAnalysisService bossDamageAnalysisService;
 
     public CharacterLookupResponseDto lookupOrRegister(String name) {
         return snapshotSyncService.lookupOrRegister(name);
@@ -29,6 +31,11 @@ public class CharacterLookupService {
 
     public CharacterEntity requireExisting(String name) {
         return snapshotSyncService.requireExistingCharacter(name);
+    }
+
+    public BossDamageAnalysisDto bossDamageAnalysis(String name) {
+        CharacterEntity character = requireExisting(name);
+        return bossDamageAnalysisService.analyze(snapshotSyncService.latestSnapshot(character));
     }
 
     public GrowthHistoryDto growthHistory(CharacterEntity character, String range, String metric, int rangeDays) {

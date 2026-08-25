@@ -180,6 +180,9 @@ describe("dashboard page", () => {
     assert.match(html, /equipment\/%EB%AC%B4%EA%B8%B0%3A%EB%AC%B4%EA%B8%B0/);
     assert.match(html, /우선 검토 장비/);
     assert.match(html, /현재 스타포스가 0이라/);
+    assert.match(html, /aria-label="Dashboard"/);
+    assert.match(html, /aria-label="Analytics"/);
+    assert.match(html, /주요 지표/);
   });
 
   it("renders grouped replacement details for ITEM_REPLACED events", () => {

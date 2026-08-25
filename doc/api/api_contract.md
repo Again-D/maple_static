@@ -283,8 +283,13 @@ DB에 없는 캐릭터는 Nexon OpenAPI에서 조회해 저장하고, 당일 대
 
 `equipment.items` contains normalized active non-cash equipment from the latest successful snapshot. `equipment.upgradeCandidates` contains only current-state candidates with an observed reason. Raw Nexon equipment JSON is not exposed. Optional item detail groups are omitted or empty when the source value is unavailable; the frontend must not infer zero values.
 
-데이터 부족 응답도 HTTP 200으로 반환한다.
-이 경우 `summary.hasEnoughSnapshots`는 `false`, `chart.points`는 가능한 만큼만 포함하고, `timeline.events`는 빈 배열일 수 있다.
+데이터 부족 응답도 HTTP 200으로 반환한다. 이 경우 `summary.hasEnoughSnapshots`는 `false`, `chart.points`는 가능한 만큼만 포함하고, `timeline.events`는 빈 배열일 수 있다.
+
+### Boss damage analysis
+
+`GET /api/v1/characters/{name}/analytics/boss-damage` returns a cache-only analysis from the latest successful snapshot. The response includes `catalogVersion`, `catalogReviewedAt`, `catalogSource`, observed `bossDamagePercent` and `ignoreDefensePercent`, and one `bosses` row per supported boss. `effectiveDamageMultiplier` is a reference estimate; it is `null` when either input stat is missing. Raw Nexon JSON is never returned. The response includes `limitations` so clients do not present the estimate as a guaranteed in-game result.
+
+When either required input is missing or unparsable, the endpoint still returns HTTP 200 with `available: false`, nullable `bossDamagePercent` and `ignoreDefensePercent`, and boss rows with `available: false`, `effectiveDamageMultiplier: null`, and `unavailableReason`. A successful analysis sets `available: true` and returns a calculated multiplier for each catalog row.
 
 ### 6.3. 성장 이력 조회
 

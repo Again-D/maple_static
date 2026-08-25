@@ -2,6 +2,7 @@ import type {
   ApiResponse,
   CharacterLookupData,
   DashboardData,
+  BossDamageAnalysis,
   GrowthHistory,
   MetricOption,
   RangeOption,
@@ -82,4 +83,8 @@ export function refreshCharacter(name: string) {
   return requestJson<RefreshData>(`/api/v1/characters/${encodeURIComponent(normalizeCharacterName(name))}/refresh`, {
     method: "POST"
   });
+}
+
+export function fetchBossDamageAnalysis(name: string) {
+  return requestJson<BossDamageAnalysis>(`/api/v1/characters/${encodeURIComponent(normalizeCharacterName(name))}/analytics/boss-damage`);
 }
